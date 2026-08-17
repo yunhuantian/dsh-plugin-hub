@@ -1,0 +1,107 @@
+{
+  "name": "dsh-plugin-hub",
+  "version": "0.1.7",
+  "description": "Plugin Hub for DeepSeek Harness (DSH): a graphical app-store inside the Harness Web UI — browse, search, and one-click install GitHub dsh-plugins, with local ratings, dependency impact graphs, audit logging, and a development scaffold",
+  "keywords": [
+    "deepseek-harness",
+    "deepseek",
+    "dsh",
+    "cordis",
+    "plugin-hub",
+    "plugin-store",
+    "plugin-marketplace",
+    "web-ui",
+    "one-click-install",
+    "audit-log",
+    "plugin-bundle"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/host/index.js",
+  "types": "lib/host/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yunhuantian/dsh-plugin-hub.git"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/host/index.d.ts",
+      "default": "./lib/host/index.js"
+    },
+    "./remote": {
+      "types": "./lib/contracts/remote.d.ts",
+      "default": "./lib/contracts/remote.js"
+    },
+    "./typert": {
+      "types": "./lib/contracts/remote.d.ts",
+      "default": "./lib/contracts/remote.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.d.ts",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-api-gateway",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-settings-general"
+      ]
+    }
+  },
+  "scripts": {
+    "build:host": "tsc -p tsconfig.host.json",
+    "build:client": "node scripts/build-client.mjs",
+    "build": "npm run build:host && npm run build:client",
+    "typecheck": "tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.host.json --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
+    "@types/node": "^24.0.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "esbuild": "^0.25.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.8.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/cordis-plugin-loader": ">=1.0.2 <2.0.0",
+    "@deepseek-ai/dsh-api-gateway": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-settings-general": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
+    "react": ">=18.2.0 <20.0.0"
+  }
+}

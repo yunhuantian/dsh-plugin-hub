@@ -1,0 +1,4 @@
+# Plugin Hub bundle patch: register the host plugin entry in the web profile.
+- insert:
+    - id: dsh-plugin-hub
+      name: dsh-plugin-hub
