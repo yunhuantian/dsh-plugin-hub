@@ -935,21 +935,25 @@ export class PluginStoreService extends TypertRemoteService {
     }
   }
 
-  /** dsh-connector 状态：插件是否安装 + 各平台配置/运行状态。 */
+  /** dsh-connector 状态：插件是否安装 + 各平台配置/运行状态（读状态文件，插件写入）。 */
   @Remote('connectorStatus')
   async connectorStatus(): Promise<Record<string, unknown>> {
     const connectorPkg = join(resolveDshHome(), 'profiles', this.profile.profileName, 'node_modules', 'dsh-connector');
     const installed = existsSync(connectorPkg);
+    const storeDir = join(resolveDshHome(), 'storages', 'dsh-connector');
     let config: Record<string, unknown> = {};
     let status: Record<string, unknown> = {};
     try {
-      const cfgPath = join(resolveDshHome(), 'storages', 'dsh-connector', 'config.json');
+      const cfgPath = join(storeDir, 'config.json');
       if (existsSync(cfgPath)) config = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>;
     } catch { /* keep empty */ }
     try {
-      const im = (this.ctx as { imConnector?: { status?: () => Record<string, unknown> } } | undefined)?.imConnector;
-      status = im?.status?.() ?? {};
-    } catch { /* plugin may not be loaded */ }
+      const stPath = join(storeDir, 'status.json');
+      if (existsSync(stPath)) {
+        const data = JSON.parse(readFileSync(stPath, 'utf8')) as { platforms?: Record<string, unknown> };
+        status = data.platforms ?? {};
+      }
+    } catch { /* keep empty */ }
     return { installed, config, status };
   }
 
@@ -965,7 +969,7 @@ export class PluginStoreService extends TypertRemoteService {
     } catch { /* fresh */ }
     config[platform] = { ...(config[platform] as Record<string, unknown> ?? {}), ...payload };
     writeFileSync(cfgPath, JSON.stringify(config, null, 2), 'utf8');
-    return { ok: true, message: `「${platform}」配置已保存，重启 dsh 后生效。`, detail: config[platform] };
+    return { ok: true, message: `「${platform}」配置已保存，重启 dsh 后生效。`, detail: JSON.stringify(config[platform]) };
   }
 
   /** 在 dsh 内触发「立即跑分」：调用 dsh-bench CLI 现场跑 Mock（零 token）。 */

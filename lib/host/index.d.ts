@@ -109,7 +109,7 @@ export declare class PluginStoreService extends TypertRemoteService {
     skillInstalled(): Promise<Array<Record<string, unknown>>>;
     /** dsh-bench 跑分（独立项目产出，按插件名索引；报告缺失/失败优雅降级）。 */
     bench(packageName: string): Promise<Record<string, unknown>>;
-    /** dsh-connector 状态：插件是否安装 + 各平台配置/运行状态。 */
+    /** dsh-connector 状态：插件是否安装 + 各平台配置/运行状态（读状态文件，插件写入）。 */
     connectorStatus(): Promise<Record<string, unknown>>;
     /** dsh-connector 配置保存（hub 设置页 → 配置文件，重启 dsh 生效）。 */
     connectorConfigSet(platform: string, payload: Record<string, unknown>): Promise<Record<string, unknown>>;
