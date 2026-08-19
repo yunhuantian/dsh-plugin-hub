@@ -51,6 +51,10 @@ GitHub 上的 DSH 插件（来源限定为标记 `topic: dsh-plugin` 或 `#dsh-p
 - **全生态技能收录**：SKILL.md 是通用格式（Claude / Agent 生态统一），从 5 个 GitHub 主题（dsh-skill / claude-skills / agent-skills / skills / claude-skill）合并收集 150 仓库 → 首批 28 个技能（视频剪辑、代码测试、文档生成、网文检索等）
 - **DSH 专用分类**：每个技能自动打两维标签——生态分类（🟦 DSH 专用 / ⚪ 通用，按仓库与描述含 dsh|deepseek 判定）+ 用途分类（12 类与插件商店同款，描述关键词推导）；支持组合筛选
 - **Skill 详情**：SKILL.md 全文渲染 + 一键安装/卸载 + 「怎么在对话中调用」提示（复制调用指令）；安装附带同目录小文件（≤15 个）
+- **可扩展类分类（13 类）**：新增「可扩展类（Hub Extensions）」——扩展 hub 能力的官方插件（dsh-bench / dsh-connector）单独一类，自创作插件按「可扩展类」子组展示
+- **详情页「跑分」tab**：消费 dsh-bench 产出的性能报告（综合分/等级/生态均值/各环节耗时），报告缺失优雅降级；**「立即跑分」**按钮在 dsh 内现场跑 Mock（零 token）；**「端到端跑分」**按钮真实调用模型（消耗 token，确认后执行，120s 自动中止）
+- **设置页「连接器」区**：官方可扩展类插件 dsh-connector 的 IM 桥接配置（飞书等平台凭据 + 状态展示），保存后重启生效
+- **镜像同步提速**：并发池（认证 8 并发 / 匿名 4 并发）+ npm 下载量缓存——同步 200+ 仓库从约 20 分钟降至 2-3 分钟
 - **修复**：client bundle 契约不同步导致的 `list rejected "filters"`（重建 client bundle）
 
 ### 0.1.6（2026-08-16）
