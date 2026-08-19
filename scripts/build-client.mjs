@@ -82,7 +82,12 @@ ${indent(body, 2)}
 `;
 
   writeFileSync(outFile, wrapped);
-  rmSync(join(root, 'dist'), { recursive: true, force: true });
+  // Cleanup of the staging dir is best-effort only: on some sandboxes the
+  // safe-delete shim intercepts rmSync and throws — the bundle is already
+  // written at this point, so a failed cleanup must NOT fail the build.
+  try {
+    rmSync(join(root, 'dist'), { recursive: true, force: true });
+  } catch { /* non-fatal */ }
   console.log(`client bundle written: ${outFile} (${wrapped.length} bytes)`);
 }
 
