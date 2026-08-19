@@ -55,7 +55,8 @@ export declare class GitHubClient {
      * Returns deduplicated hits ordered by stars.
      */
     searchRepos(query: string, pages?: number, perPage?: number): Promise<GitHubRepoHit[]>;
-    /** npm monthly downloads for a published package (0 when unpublished). */
+    /** npm monthly downloads for a published package (0 when unpublished). 会话内缓存，避免并发同步时重复打 npm API。 */
+    private npmDownloadCache;
     npmDownloads(packageName: string): Promise<number>;
     /** GitHub releases for a repo (version history). */
     releases(owner: string, repo: string): Promise<Array<{

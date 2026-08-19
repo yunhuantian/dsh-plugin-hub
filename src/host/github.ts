@@ -154,16 +154,22 @@ export class GitHubClient {
     return [...hits.values()].sort((a, b) => b.stars - a.stars);
   }
 
-  /** npm monthly downloads for a published package (0 when unpublished). */
+  /** npm monthly downloads for a published package (0 when unpublished). 会话内缓存，避免并发同步时重复打 npm API。 */
+  private npmDownloadCache = new Map<string, number>();
+
   async npmDownloads(packageName: string): Promise<number> {
+    const cached = this.npmDownloadCache.get(packageName);
+    if (cached !== undefined) return cached;
+    let value = 0;
     try {
       const res = await fetch(`${NPM_API}/downloads/point/last-month/${encodeURIComponent(packageName)}`, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) return 0;
-      const data = await res.json() as { downloads?: number };
-      return Number(data.downloads ?? 0);
-    } catch {
-      return 0;
-    }
+      if (res.ok) {
+        const data = await res.json() as { downloads?: number };
+        value = Number(data.downloads ?? 0);
+      }
+    } catch { value = 0; }
+    this.npmDownloadCache.set(packageName, value);
+    return value;
   }
 
   /** GitHub releases for a repo (version history). */
@@ -479,93 +485,103 @@ export async function runMirrorSync(github: GitHubClient, db: StoreDB, options: 
   const authenticated = github.token !== null;
   const detailTop = authenticated ? Number.POSITIVE_INFINITY : 30;
 
-  for (let i = 0; i < candidates.length; i++) {
-    const hit = candidates[i];
-    onProgress?.(`正在同步 ${hit.fullName}`, i + 1, candidates.length);
-    try {
-      const existing = db.getPluginByRepo(hit.fullName);
-      const unchanged = existing !== undefined && !force && existing.updatedAt === (hit.pushedAt || hit.updatedAt);
-      if (unchanged && existing.packageJson !== '{}') {
-        skipped++;
-        continue;
+  // 并发池：网络请求并行，避免 200+ 仓库串行 3-5 次请求（约 20 分钟）。
+  // 认证 8 并发（token 5000/h 富余）；匿名 4 并发（60/h 核心限频下够用且防误伤）。
+  const concurrency = Math.min(8, authenticated ? 8 : 4);
+  let aborted = false;
+
+  const workers = Array.from({ length: concurrency }, async (_, w) => {
+    for (let i = w; i < candidates.length; i += concurrency) {
+      if (aborted) break;
+      const hit = candidates[i];
+      onProgress?.(`正在同步 ${hit.fullName}（并发 ${concurrency}）`, i + 1, candidates.length);
+      try {
+        const existing = db.getPluginByRepo(hit.fullName);
+        const unchanged = existing !== undefined && !force && existing.updatedAt === (hit.pushedAt || hit.updatedAt);
+        if (unchanged && existing.packageJson !== '{}') {
+          skipped++;
+          continue;
+        }
+
+        const pkgRaw = await github.rawFile(hit.owner, hit.repo, hit.defaultBranch, 'package.json');
+        let pkg: Record<string, unknown> | null = null;
+        if (pkgRaw) {
+          try { pkg = JSON.parse(pkgRaw) as Record<string, unknown>; } catch { pkg = null; }
+        }
+        if (!pkg || !isDshPlugin(pkg)) {
+          // Not (or no longer) a dsh plugin: keep a previously cached row, skip new ones.
+          if (existing) skipped++;
+          continue;
+        }
+
+        const packageName = String(pkg.name ?? hit.repo).trim();
+        if (!packageName) continue;
+        const existingByName = db.getPlugin(packageName);
+        const wantsDetails = i < detailTop;
+
+        const [releases, readme, downloads, latestTag] = await Promise.all([
+          wantsDetails ? github.releases(hit.owner, hit.repo) : Promise.resolve([]),
+          github.rawFile(hit.owner, hit.repo, hit.defaultBranch, 'README.md')
+            ?? await github.rawFile(hit.owner, hit.repo, hit.defaultBranch, 'readme.md'),
+          // npm monthly downloads come from the public npm API — no GitHub token
+          // needed. 0 means the package is unpublished or the query failed; we
+          // never fabricate a number (no stars×N estimation).
+          github.npmDownloads(packageName),
+          wantsDetails ? github.latestReleaseTag(hit.owner, hit.repo) : Promise.resolve(null),
+        ]);
+
+        const version = String(pkg.version ?? latestTag ?? '') || null;
+        const usage = extractUsage(readme ?? '');
+        const screenshots = extractScreenshots(readme ?? '', hit.fullName, hit.defaultBranch);
+        const dsh = (pkg.dsh ?? {}) as Record<string, unknown>;
+        const group = (dsh.pluginManager as Record<string, unknown> | undefined)?.group as string | undefined;
+        const categories = deriveCategories(pkg, hit.topics, group);
+        const fullDescription = (pkg.description as string | undefined) || hit.description || '';
+        const now = new Date().toISOString();
+        const fallbackVersion: { version: string; publishedAt: null; changelog: null; tagName: string | null } = { version: version ?? '', publishedAt: null, changelog: null, tagName: latestTag };
+
+        db.upsertPlugin({
+          packageName,
+          repoFullName: hit.fullName,
+          repoUrl: `https://github.com/${hit.fullName}`,
+          name: String(pkg.displayName ?? pkg.name ?? hit.repo),
+          description: fullDescription,
+          shortDescription: shortDescription(hit.description, fullDescription),
+          developer: hit.owner,
+          iconUrl: hit.avatarUrl,
+          categories: JSON.stringify(categories),
+          version,
+          stars: hit.stars,
+          downloads,
+          forks: hit.forks,
+          topics: JSON.stringify(hit.topics),
+          license: hit.license,
+          homepage: String(pkg.homepage ?? hit.homepage ?? '') || null,
+          defaultBranch: hit.defaultBranch,
+          readme: readme ?? '',
+          usage,
+          screenshots: JSON.stringify(screenshots),
+          packageJson: JSON.stringify(pkg),
+          updatedAt: hit.pushedAt || hit.updatedAt,
+          syncedAt: now,
+        });
+
+        db.replaceVersions(packageName, releases.length > 0 ? releases : [fallbackVersion]);
+        db.replaceDependencies(packageName, dependencyEdges(pkg));
+
+        if (existingByName) updated++;
+        else added++;
+      } catch (error) {
+        if (error instanceof GitHubRateLimitError) {
+          firstError ??= error.message;
+          aborted = true;
+          break;
+        }
+        firstError ??= error instanceof Error ? error.message : String(error);
       }
-
-      const pkgRaw = await github.rawFile(hit.owner, hit.repo, hit.defaultBranch, 'package.json');
-      let pkg: Record<string, unknown> | null = null;
-      if (pkgRaw) {
-        try { pkg = JSON.parse(pkgRaw) as Record<string, unknown>; } catch { pkg = null; }
-      }
-      if (!pkg || !isDshPlugin(pkg)) {
-        // Not (or no longer) a dsh plugin: keep a previously cached row, skip new ones.
-        if (existing) skipped++;
-        continue;
-      }
-
-      const packageName = String(pkg.name ?? hit.repo).trim();
-      if (!packageName) continue;
-      const existingByName = db.getPlugin(packageName);
-      const wantsDetails = i < detailTop;
-
-      const [releases, readme, downloads, latestTag] = await Promise.all([
-        wantsDetails ? github.releases(hit.owner, hit.repo) : Promise.resolve([]),
-        github.rawFile(hit.owner, hit.repo, hit.defaultBranch, 'README.md')
-          ?? await github.rawFile(hit.owner, hit.repo, hit.defaultBranch, 'readme.md'),
-        // npm monthly downloads come from the public npm API — no GitHub token
-        // needed. 0 means the package is unpublished or the query failed; we
-        // never fabricate a number (no stars×N estimation).
-        github.npmDownloads(packageName),
-        wantsDetails ? github.latestReleaseTag(hit.owner, hit.repo) : Promise.resolve(null),
-      ]);
-
-      const version = String(pkg.version ?? latestTag ?? '') || null;
-      const usage = extractUsage(readme ?? '');
-      const screenshots = extractScreenshots(readme ?? '', hit.fullName, hit.defaultBranch);
-      const dsh = (pkg.dsh ?? {}) as Record<string, unknown>;
-      const group = (dsh.pluginManager as Record<string, unknown> | undefined)?.group as string | undefined;
-      const categories = deriveCategories(pkg, hit.topics, group);
-      const fullDescription = (pkg.description as string | undefined) || hit.description || '';
-      const now = new Date().toISOString();
-      const fallbackVersion: { version: string; publishedAt: null; changelog: null; tagName: string | null } = { version: version ?? '', publishedAt: null, changelog: null, tagName: latestTag };
-
-      db.upsertPlugin({
-        packageName,
-        repoFullName: hit.fullName,
-        repoUrl: `https://github.com/${hit.fullName}`,
-        name: String(pkg.displayName ?? pkg.name ?? hit.repo),
-        description: fullDescription,
-        shortDescription: shortDescription(hit.description, fullDescription),
-        developer: hit.owner,
-        iconUrl: hit.avatarUrl,
-        categories: JSON.stringify(categories),
-        version,
-        stars: hit.stars,
-        downloads,
-        forks: hit.forks,
-        topics: JSON.stringify(hit.topics),
-        license: hit.license,
-        homepage: String(pkg.homepage ?? hit.homepage ?? '') || null,
-        defaultBranch: hit.defaultBranch,
-        readme: readme ?? '',
-        usage,
-        screenshots: JSON.stringify(screenshots),
-        packageJson: JSON.stringify(pkg),
-        updatedAt: hit.pushedAt || hit.updatedAt,
-        syncedAt: now,
-      });
-
-      db.replaceVersions(packageName, releases.length > 0 ? releases : [fallbackVersion]);
-      db.replaceDependencies(packageName, dependencyEdges(pkg));
-
-      if (existingByName) updated++;
-      else added++;
-    } catch (error) {
-      if (error instanceof GitHubRateLimitError) {
-        firstError ??= error.message;
-        break;
-      }
-      firstError ??= error instanceof Error ? error.message : String(error);
     }
-  }
+  });
+  await Promise.all(workers);
 
   const now = new Date().toISOString();
   db.setMeta('last_sync_at', now);
