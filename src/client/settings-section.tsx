@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { IconCordisPluginOutline14, IconRefreshOutline16, IconSettingsOutline16, IconUserOutline16, IconWarningOutline16 } from '@deepseek-ai/dsh-client-ui-primitives';
-import { actorDisplay, formatDate, getActor, setActor as persistActor, type RemoteApi } from './api';
+import { actorDisplay, formatDate, getActor, setActor as persistActor, type ExtensionRow, type ExtensionsSnapshot, type RemoteApi } from './api';
 
 interface SectionProps {
   api: RemoteApi;
@@ -17,6 +17,7 @@ interface SectionProps {
 export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNode {
   const [settings, setSettings] = useState<Awaited<ReturnType<RemoteApi['settings']>> | null>(null);
   const [status, setStatus] = useState<Awaited<ReturnType<RemoteApi['syncStatus']>> | null>(null);
+  const [extensions, setExtensions] = useState<ExtensionsSnapshot | null>(null);
   const [token, setToken] = useState('');
   const [hours, setHours] = useState('24');
   const [actor, setActorName] = useState(actorDisplay());
@@ -26,9 +27,10 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
 
   const refresh = useCallback(async () => {
     try {
-      const [s, st] = await Promise.all([api.settings(), api.syncStatus()]);
+      const [s, st, ext] = await Promise.all([api.settings(), api.syncStatus(), api.extensions()]);
       setSettings(s);
       setStatus(st);
+      setExtensions(ext);
       setHours(String(st.scheduleHours));
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   }, [api]);
@@ -86,6 +88,28 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
     setNotice('显示名已保存，后续操作将以该名称记录到审计日志。');
   };
 
+  /** 开关一个内置扩展：写开关文件，扩展在下次启动时读取。 */
+  const toggleExtension = async (id: string, next: boolean) => {
+    setBusy(`ext:${id}`);
+    setNotice(null);
+    try {
+      const r = await api.extensionSet(id, next);
+      setNotice(r.ok ? `${r.message}${r.detail ? `（${r.detail}）` : ''}` : null);
+      setError(r.ok ? null : r.message);
+      await refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(null); }
+  };
+
+  /** 插件上报阶段 → 展示用标签（含"依赖阻塞"与"开了但没起来"的区分）。 */
+  const phaseChip = (row: ExtensionRow): { text: string; cls: string } => {
+    if (!row.enabled) return { text: '已关闭', cls: 'off' };
+    if (row.loaderPhase === 'failed' || row.phase === 'failed') return { text: '加载失败', cls: 'off' };
+    if (row.blockedBy.length > 0 || row.phase === 'blocked') return { text: '依赖阻塞', cls: 'blocked' };
+    if (row.phase === 'active') return { text: '运行中', cls: '' };
+    if (row.loaderPhase === null) return { text: '未加载', cls: 'pending' };
+    return { text: '待启动', cls: 'pending' };
+  };
+
   return (
     <div className="dps-settings-native">
       <div className="dps-native-hero">
@@ -122,6 +146,93 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
             数据库：<code>{settings.dbPath}</code>
           </p>
         )}
+      </section>
+
+      <section className="dps-section">
+        <h4 className="dps-section-title"><IconCordisPluginOutline14 size={15} /> 内建插件（随插件商店一起安装、可单独关闭）</h4>
+        <p className="dps-hint">
+          插件商店是<strong>一个包、20 个内建插件</strong>（与 DSH 本体同构）：它们随商店一次安装、一次发布，
+          但可以单独开关，也<strong>声明了彼此依赖</strong>。关掉的插件在启动时让位，不提供服务也不注册界面；
+          依赖没开的插件会显示「依赖阻塞」并自动让位，随时可以开回来。
+          每个内建插件在 DSH 的「设置 → 插件」清单页里也各占一行，可在那里看到加载状态。
+          {extensions && <> 当前价格表版本 <code>v{extensions.currentPriceVersion}</code>。</>}
+        </p>
+        {extensions && (
+          <div className="dps-ext-summary">
+            共 <strong>{extensions.pluginCount}</strong> 个内建插件 · 运行中 <strong>{extensions.activeCount}</strong> ·
+            关闭 {extensions.rows.filter((r) => !r.enabled).length} · 依赖阻塞 {extensions.rows.filter((r) => r.enabled && r.blockedBy.length > 0).length}
+          </div>
+        )}
+        {(extensions?.groups ?? []).map((group) => {
+          const rows = (extensions?.rows ?? []).filter((r) => r.group === group.id).sort((a, b) => a.order - b.order);
+          if (rows.length === 0) return null;
+          const running = rows.filter((r) => r.phase === 'active').length;
+          return (
+            <div className="dps-ext-group" key={group.id}>
+              <div className="dps-ext-group-head">
+                <span className="dps-ext-group-name">{group.name}</span>
+                <span className="dps-ext-en">{group.nameEn}</span>
+                <span className="dps-ext-group-count">{running}/{rows.length} 运行中</span>
+              </div>
+              <p className="dps-hint">{group.description}</p>
+              <div className="dps-ext-list">
+                {rows.map((row) => {
+                  const chip = phaseChip(row);
+                  const blocked = row.enabled && row.blockedBy.length > 0;
+                  return (
+                    <div className="dps-ext-row" key={row.id}>
+                      <div className="dps-ext-main">
+                        <div className="dps-ext-title">
+                          <span>{row.name}</span>
+                          <span className="dps-ext-en">{row.nameEn}</span>
+                          <span className={`dps-state-chip ${chip.cls}`}>{chip.text}</span>
+                        </div>
+                        <p className="dps-ext-desc">{row.description}</p>
+                        <p className="dps-ext-meta">
+                          <code>{row.entry}</code>
+                          {row.service !== null && <> · 服务 <code>{row.service}</code></>}
+                          {row.ui !== null && <> · 界面：{row.ui}</>}
+                        </p>
+                        {(row.requires.length > 0 || row.dependents.length > 0) && (
+                          <p className="dps-ext-deps">
+                            {row.requires.length > 0 && (
+                              <>
+                                <span>依赖：</span>
+                                {row.requires.map((dep) => (
+                                  <span key={dep} className={`dps-dep-tag${row.blockedBy.some((b) => b.id === dep) ? ' missing' : ''}`}>{dep}</span>
+                                ))}
+                              </>
+                            )}
+                            {row.dependents.length > 0 && (
+                              <>
+                                <span>被依赖：</span>
+                                {row.dependents.map((d) => (
+                                  <span key={d.id} className="dps-dep-tag" title={d.name}>{d.id}</span>
+                                ))}
+                              </>
+                            )}
+                          </p>
+                        )}
+                        {row.detail !== '' && <p className="dps-ext-meta">{row.detail}</p>}
+                      </div>
+                      <button
+                        type="button"
+                        className={`dps-btn${row.enabled ? '' : ' dps-btn-primary'}`}
+                        disabled={busy === `ext:${row.id}`}
+                        title={blocked ? '依赖的插件没开，开着也不会生效' : undefined}
+                        onClick={() => void toggleExtension(row.id, !row.enabled)}
+                      >
+                        {row.enabled ? '关闭' : '开启'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {extensions === null && <p className="dps-hint">正在读取内建插件状态…</p>}
+        <p className="dps-hint">开关写入本机 <code>storages/plugin-store/plugins.json</code>，<strong>重启 dsh 后生效</strong>。关掉被依赖的插件时，下游会自动进入「依赖阻塞」。</p>
       </section>
 
       <section className="dps-section">

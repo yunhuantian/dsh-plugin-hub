@@ -30,6 +30,8 @@ export interface PluginSummary {
   hasGit: boolean;
   /** Trust level from the ecosystem index; null = unknown. */
   trustLevel?: string | null;
+  /** True when the row came from the bundle's offline seed catalog (not synced yet). */
+  seed?: boolean;
   /** Estimated health snapshot (0-100) — for list sorting. */
   health: number;
 }
@@ -144,6 +146,8 @@ export interface InstalledPlugin {
   managed: boolean;
   /** Infrastructure entries that must not be disabled from the UI. */
   protected: boolean;
+  /** Whether this row can be uninstalled on its own (false for system entries and hub's in-package plugins). */
+  uninstallable?: boolean;
   /** Alias of category. */
   type: string;
   /** Local install path for 自创作插件; null otherwise. */
@@ -295,6 +299,84 @@ export interface RemoteApi {
   connectorStatus(): Promise<{ installed: boolean; config: Record<string, unknown>; status: Record<string, unknown> }>;
   /** dsh-connector 平台配置保存（重启 dsh 生效）。 */
   connectorConfigSet(platform: string, payload: Record<string, unknown>): Promise<OpResult>;
+  /**
+   * hub 内置扩展名册 + 实时状态（0.2：一个包、多个可开关的内部插件）。
+   * `enabled` 是开关的生效值，`phase` 是扩展自己上报的运行阶段。
+   */
+  extensions(): Promise<ExtensionsSnapshot>;
+  /** 开关一个内置扩展（写开关文件，重启 dsh 后生效）。 */
+  extensionSet(id: string, enabled: boolean): Promise<OpResult>;
+  /** 版本化价格表（旧 → 新）：UI 用它标注"当时价/现价"的口径来源。 */
+  pricingTable(): Promise<PricingSnapshot>;
+}
+
+/** 一个内建插件的运行行。 */
+export interface ExtensionRow {
+  id: string;
+  rowId: string;
+  entry: string;
+  name: string;
+  nameEn: string;
+  description: string;
+  descriptionEn: string;
+  /** 所属分组（foundation / safety / publish / insight / ops）。 */
+  group: string;
+  /** 硬依赖的插件 id。 */
+  requires: string[];
+  /** 依赖它的插件（关掉它时提示会牵连谁）。 */
+  dependents: Array<{ id: string; name: string }>;
+  /** 自己的开关值。 */
+  enabled: boolean;
+  /** 开关 + 依赖都满足（真的在跑）。 */
+  runnable: boolean;
+  /** 因依赖没开而让位时缺的那几个。 */
+  blockedBy: Array<{ id: string; name: string }>;
+  /** active / disabled / blocked / failed / idle（插件上报）。 */
+  phase: string;
+  detail: string;
+  reportedAt: number;
+  service: string | null;
+  ui: string | null;
+  order: number;
+  /** loader 里的真实阶段：active/pending/failed/disabled/null。 */
+  loaderPhase: string | null;
+}
+
+/** 一个内建插件分组。 */
+export interface ExtensionGroup {
+  id: string;
+  name: string;
+  nameEn: string;
+  description: string;
+  descriptionEn: string;
+  order: number;
+}
+
+export interface ExtensionsSnapshot {
+  currentPriceVersion: string;
+  /** 内建插件总数。 */
+  pluginCount: number;
+  /** 已装配的数量。 */
+  activeCount: number;
+  groups: ExtensionGroup[];
+  rows: ExtensionRow[];
+}
+
+export interface PricingVersionRow {
+  version: string;
+  label: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  note: string;
+  source: string;
+  peakMultiplier: number | null;
+  peakNote: string | null;
+  models: string[];
+}
+
+export interface PricingSnapshot {
+  current: string;
+  versions: PricingVersionRow[];
 }
 
 export function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: { code: string; message: string } }): T {
@@ -342,6 +424,9 @@ export function makeApi(remote: Record<string, any>): RemoteApi {
     benchRun: async (packageName, mode) => unwrap(await r.benchRun(packageName, mode ?? 'mock')),
     connectorStatus: async () => unwrap(await r.connectorStatus()),
     connectorConfigSet: async (platform, payload) => unwrap(await r.connectorConfigSet(platform, payload)),
+    extensions: async () => unwrap(await r.extensions()),
+    extensionSet: async (id, enabled) => unwrap(await r.extensionSet(id, enabled)),
+    pricingTable: async () => unwrap(await r.pricingTable()),
   };
 }
 

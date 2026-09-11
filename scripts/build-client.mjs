@@ -18,7 +18,19 @@ const outBody = join(root, 'dist', 'client-body.js');
 const outFile = join(root, 'lib', 'client.js');
 const outMap = join(root, 'lib', 'client.js.map');
 
-/** Shell-provided modules (the static seed table of the web shell). */
+/**
+ * Shell-provided modules —— **必须以 0.1.5 的实际种子表为准**。
+ *
+ * 新版 web 外壳的种子表（dsh-web-frontend/dist 里的 `staticModules`）只有这 9 个：
+ *   react / react-dom(+client, jsx-runtime) /
+ *   @deepseek-ai/cordis / dsh-client-store / dsh-client-ui-slots /
+ *   dsh-client-ui-primitives / dsh-client-ui-dockkit
+ *
+ * 0.2 适配：`@deepseek-ai/dsh-client-runtime` 与 `dsh-client-web-react`
+ * 在新版已被移除（不再出现在任何平台包中）。它们曾在本清单里，一旦保留就会
+ * 让 bundle 去 require 一个不存在的模块 —— 这正是必须跟着平台版本走的原因。
+ * 除种子表与同图的插件行外，一切依赖都应内联进本 bundle。
+ */
 const EXTERNALS = [
   'react',
   'react/jsx-runtime',
@@ -26,17 +38,7 @@ const EXTERNALS = [
   'react-dom/client',
   '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-client-ui-slots',
-  '@deepseek-ai/dsh-client-web-react',
   '@deepseek-ai/dsh-client-ui-primitives',
-  '@deepseek-ai/dsh-client-ui-attachment',
-  '@deepseek-ai/dsh-client-schema-form',
-  // 0.1.3 insights: conversation session kit + jobs mirror + token projections.
-  '@deepseek-ai/dsh-client-runtime',
-  '@deepseek-ai/dsh-client-ui-conversation',
-  '@deepseek-ai/dsh-client-ui-layout',
-  '@deepseek-ai/dsh-token-meter',
-  '@deepseek-ai/dsh-client-connection',
-  '@deepseek-ai/dsh-api-remotes',
 ];
 
 const PLUGIN_ID = 'dsh-plugin-hub';

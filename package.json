@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-hub",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "Plugin Hub for DeepSeek Harness (DSH): a graphical app-store inside the Harness Web UI — browse, search, and one-click install GitHub dsh-plugins, with local ratings, dependency impact graphs, audit logging, and a development scaffold",
   "keywords": [
     "deepseek-harness",
@@ -39,6 +39,94 @@
       "types": "./lib/contracts/remote.d.ts",
       "default": "./lib/contracts/remote.js"
     },
+    "./pricing": {
+      "types": "./lib/contracts/pricing.d.ts",
+      "default": "./lib/contracts/pricing.js"
+    },
+    "./extensions/store-db": {
+      "types": "./lib/extensions/store-db.d.ts",
+      "default": "./lib/extensions/store-db.js"
+    },
+    "./extensions/github": {
+      "types": "./lib/extensions/github.d.ts",
+      "default": "./lib/extensions/github.js"
+    },
+    "./extensions/npm-probe": {
+      "types": "./lib/extensions/npm-probe.d.ts",
+      "default": "./lib/extensions/npm-probe.js"
+    },
+    "./extensions/seed-catalog": {
+      "types": "./lib/extensions/seed-catalog.d.ts",
+      "default": "./lib/extensions/seed-catalog.js"
+    },
+    "./extensions/registry": {
+      "types": "./lib/extensions/registry.d.ts",
+      "default": "./lib/extensions/registry.js"
+    },
+    "./extensions/installer": {
+      "types": "./lib/extensions/installer.d.ts",
+      "default": "./lib/extensions/installer.js"
+    },
+    "./extensions/security": {
+      "types": "./lib/extensions/security.d.ts",
+      "default": "./lib/extensions/security.js"
+    },
+    "./extensions/conflict": {
+      "types": "./lib/extensions/conflict.d.ts",
+      "default": "./lib/extensions/conflict.js"
+    },
+    "./extensions/quality": {
+      "types": "./lib/extensions/quality.d.ts",
+      "default": "./lib/extensions/quality.js"
+    },
+    "./extensions/trust": {
+      "types": "./lib/extensions/trust.d.ts",
+      "default": "./lib/extensions/trust.js"
+    },
+    "./extensions/publish": {
+      "types": "./lib/extensions/publish.d.ts",
+      "default": "./lib/extensions/publish.js"
+    },
+    "./extensions/version-guard": {
+      "types": "./lib/extensions/version-guard.d.ts",
+      "default": "./lib/extensions/version-guard.js"
+    },
+    "./extensions/changelog": {
+      "types": "./lib/extensions/changelog.d.ts",
+      "default": "./lib/extensions/changelog.js"
+    },
+    "./extensions/usage": {
+      "types": "./lib/extensions/usage.d.ts",
+      "default": "./lib/extensions/usage.js"
+    },
+    "./extensions/health": {
+      "types": "./lib/extensions/health.d.ts",
+      "default": "./lib/extensions/health.js"
+    },
+    "./extensions/update-check": {
+      "types": "./lib/extensions/update-check.d.ts",
+      "default": "./lib/extensions/update-check.js"
+    },
+    "./extensions/dependency-graph": {
+      "types": "./lib/extensions/dependency-graph.d.ts",
+      "default": "./lib/extensions/dependency-graph.js"
+    },
+    "./extensions/baike": {
+      "types": "./lib/extensions/baike.d.ts",
+      "default": "./lib/extensions/baike.js"
+    },
+    "./extensions/skill-store": {
+      "types": "./lib/extensions/skill-store.d.ts",
+      "default": "./lib/extensions/skill-store.js"
+    },
+    "./extensions/backup": {
+      "types": "./lib/extensions/backup.d.ts",
+      "default": "./lib/extensions/backup.js"
+    },
+    "./extensions/diagnostics": {
+      "types": "./lib/extensions/diagnostics.d.ts",
+      "default": "./lib/extensions/diagnostics.js"
+    },
     "./client": {
       "types": "./lib/types/client/index.d.ts",
       "default": "./lib/client.js"
@@ -60,12 +148,13 @@
     "client": {
       "platform": "web",
       "inject": [
-        "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-api-gateway",
-        "@deepseek-ai/dsh-client-ui-sidebar",
-        "@deepseek-ai/dsh-client-ui-settings-general"
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-general",
+        "@deepseek-ai/dsh-client-ui-sidebar"
       ]
     }
   },
@@ -73,7 +162,8 @@
     "build:host": "tsc -p tsconfig.host.json",
     "build:client": "node scripts/build-client.mjs",
     "build": "npm run build:host && npm run build:client",
-    "typecheck": "tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.host.json --noEmit"
+    "typecheck": "tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.host.json --noEmit",
+    "check:contract": "node scripts/contract-check.mjs"
   },
   "dependencies": {
     "yaml": "^2.9.0",

@@ -8,6 +8,20 @@ import { TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 import { type StoreDB } from './store-db.js';
 import { GitHubClient } from './github.js';
 import { type ProfileInfo } from './installer.js';
+/**
+ * 判断一个 Loader 条目 / 依赖名是否归属 hub 包。
+ *
+ * 命中两种写法：
+ *   - `dsh-plugin-hub`              —— 商店本体
+ *   - `dsh-plugin-hub/extensions/*` —— 包内子插件（一个包、多个内部插件）
+ */
+export declare function hubOwnedOf(packageName: string): boolean;
+/** 包内子插件的短 id：`dsh-plugin-hub/extensions/usage` → `usage`；本体返回 null。 */
+export declare function hubSubIdOf(packageName: string): string | null;
+/** `file:` / `link:` / `workspace:` 安装 = 本地自创作（与依赖循环口径一致）。 */
+export declare function isLocalSpec(spec: unknown): boolean;
+/** Map a Loader entry id to a system sub-group bucket. */
+export declare function systemGroupOf(entryId: string, packageName: string): string;
 export interface ListFilters {
     category?: 'tool' | 'agent' | 'ui' | 'data' | 'other' | null;
     query?: string | null;
@@ -29,7 +43,8 @@ export declare class PluginStoreService extends TypertRemoteService {
     db: StoreDB;
     github: GitHubClient;
     profile: ProfileInfo;
-    private ctx;
+    /** 保存自己的 Context：基类 Service 已有一个公开 `ctx`，这里必须换名避免覆盖。 */
+    private appCtx;
     private syncing;
     private timer;
     private lastSyncError;
@@ -143,6 +158,27 @@ export declare class PluginStoreService extends TypertRemoteService {
     listReviews(packageName: string): Promise<Array<Record<string, unknown>>>;
     audit(query?: AuditQueryInput): Promise<Record<string, unknown>>;
     dependencyGraph(packageName: string): Promise<Record<string, unknown>>;
+    /**
+     * hub 内建插件名册 + 实时状态（0.2 的「一个包、多个内部插件」）。
+     *
+     * 数据来源四处合一：
+     *   - `HUB_PLUGINS`：静态名册（包内事实，编译期确定）
+     *   - `plugins.json`：用户开关（本 Remote 与插件同时读同一份）
+     *   - `plugins-status.json`：各插件自己上报的运行阶段
+     *   - loader 里对应行的真实阶段
+     * 于是 UI 能区分「关掉了」「依赖没开让位了」「开了但没起来」三种情况。
+     */
+    extensions(): Promise<Record<string, unknown>>;
+    /**
+     * 开关一个内建插件。写入 `plugins.json`（插件启动时读同一份），
+     * 因此**重启 dsh 后生效** —— 与 harness 自身的插件开关语义一致。
+     */
+    extensionSet(id: string, enabled: boolean): Promise<Record<string, unknown>>;
+    /**
+     * 版本化价格表快照 —— 「当时价 vs 现价」的口径来源。
+     * 单独开这个 Remote，是为了让其它插件复用同一份价格表而不必各自硬编码单价。
+     */
+    pricingTable(): Promise<Record<string, unknown>>;
     scaffold(): Promise<Record<string, unknown>>;
 }
 export default PluginStoreService;

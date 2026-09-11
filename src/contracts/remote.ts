@@ -35,6 +35,11 @@ export const pluginSummary = z.object({
   hasGit: z.boolean(),
   /** Trust level from the ecosystem index (official/verified/community/unreviewed); null = unknown. */
   trustLevel: z.string().nullable().optional(),
+  /**
+   * 该条目来自包内**离线预置目录**（尚未被镜像同步覆盖）。
+   * 同样是「契约漏一个字段 → UI 永远读不到」的高危项，改 host 时一起改。
+   */
+  seed: z.boolean().optional(),
   /** Estimated health snapshot (0-100, no live issue fetch) — for list sorting. */
   health: z.number(),
 }).readonly();
@@ -198,6 +203,14 @@ export const installedPlugin = z.object({
   managed: z.boolean(),
   /** Infrastructure entries that must not be disabled from the UI. */
   protected: z.boolean(),
+  /**
+   * 是否可以从这里单独卸载。
+   *
+   * 系统条目与 hub 的包内子插件为 false：前者属于 DSH 基建，后者随商店包一起
+   * 装卸（单独「卸载」一个 `dsh-plugin-hub/extensions/xxx` 没有意义），
+   * 所以 UI 不给它们卸载入口。普通依赖包为 true。
+   */
+  uninstallable: z.boolean(),
   /** Alias of category for readability. */
   type: z.string(),
   /** Local install path for 自创作插件 (file:/link: installs); null otherwise. */
@@ -460,6 +473,89 @@ export const descriptors = [
     commitActivity: z.array(z.object({ date: z.string(), count: z.number() }).readonly()).readonly(),
     starGains: z.array(z.object({ date: z.string(), count: z.number() }).readonly()).readonly(),
     hasToken: z.boolean(),
+  })),
+  /**
+   * hub 内建插件名册 + 它们的实时状态。
+   *
+   * 0.2 起 hub 是「一个包、21 个内部插件」（与 harness 本体同构）：核心商店加
+   * 若干可单独开关、彼此声明依赖的插件。行由 hub 的 cordis.patch.yml 插入，
+   * 因此在官方 Plugins 清单页里各占一行（共 22 行：本体 + 21）。
+   *
+   * ⚠️ 契约必须与 host 的返回**逐字段对齐**：zod 的 object 默认会剥离未声明字段，
+   * 少写一个（如 `groups`）UI 侧就直接读到 undefined —— 表现为列表空白，
+   * 而不是报错。改 host 的返回结构时，这里必须一起改。
+   */
+  descriptor('extensions', [], z.object({
+    currentPriceVersion: z.string(),
+    /** 内建插件总数。 */
+    pluginCount: z.number(),
+    /** 已装配（phase = active）的数量。 */
+    activeCount: z.number(),
+    /** 分组元数据（设置页按它分节，顺序即 order）。 */
+    groups: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      nameEn: z.string(),
+      description: z.string(),
+      descriptionEn: z.string(),
+      order: z.number(),
+    }).readonly()).readonly(),
+    rows: z.array(z.object({
+      id: z.string(),
+      /** profile patch 里的行 id（可在 Plugins 清单页按其停用）。 */
+      rowId: z.string(),
+      /** cordis 行 name（包内子路径模块）。 */
+      entry: z.string(),
+      name: z.string(),
+      nameEn: z.string(),
+      description: z.string(),
+      descriptionEn: z.string(),
+      /** 所属分组（foundation / safety / publish / insight / ops）。 */
+      group: z.string(),
+      /** 硬依赖的插件 id。 */
+      requires: z.array(z.string()).readonly(),
+      /** 依赖它的插件（关掉它时提示会牵连谁）。 */
+      dependents: z.array(z.object({ id: z.string(), name: z.string() }).readonly()).readonly(),
+      /** 用户开关的**生效值**（覆盖值优先，其次默认值）。 */
+      enabled: z.boolean(),
+      /** 开关 + 依赖都满足 → 真的在跑。 */
+      runnable: z.boolean(),
+      /** 因依赖没开而让位时缺的那几个。 */
+      blockedBy: z.array(z.object({ id: z.string(), name: z.string() }).readonly()).readonly(),
+      /** 插件上报的运行阶段：active / disabled / blocked / failed / idle。 */
+      phase: z.string(),
+      /** 上报的一句话说明。 */
+      detail: z.string(),
+      /** 上报时间（epoch ms）；0 = 从未上报。 */
+      reportedAt: z.number(),
+      /** host 端提供的服务名；null = 无服务。 */
+      service: z.string().nullable(),
+      /** UI 出现的位置；null = 无 UI。 */
+      ui: z.string().nullable(),
+      /** 组内排序。 */
+      order: z.number(),
+      /** loader 里该条目的真实阶段（active/pending/failed/disabled/null）。 */
+      loaderPhase: z.string().nullable(),
+    }).readonly()).readonly(),
+  })),
+  descriptor('extensionSet', [parameter('id', z.string()), parameter('enabled', z.boolean())], opResult),
+  /**
+   * 版本化价格表快照（旧 → 新）。UI 用它显示"当时价 vs 现价"的口径来源，
+   * 其它插件也可以读来复用同一套价格表，避免各自硬编码单价。
+   */
+  descriptor('pricingTable', [], z.object({
+    current: z.string(),
+    versions: z.array(z.object({
+      version: z.string(),
+      label: z.string(),
+      effectiveFrom: z.string(),
+      effectiveTo: z.string().nullable(),
+      note: z.string(),
+      source: z.string(),
+      peakMultiplier: z.number().nullable(),
+      peakNote: z.string().nullable(),
+      models: z.array(z.string()).readonly(),
+    }).readonly()).readonly(),
   })),
 ];
 

@@ -26,6 +26,17 @@ import { computeHealth, type HealthLevel } from './health.js';
 import { syncTrustLevels } from './trust-sync.js';
 import { syncBlueWhaleCatalog } from './catalog-sync.js';
 import { syncSkills, parseSkillFrontmatter } from './skill-sync.js';
+import { currentVersion, historySnapshot } from '../contracts/pricing.js';
+import {
+  HUB_PLUGINS,
+  HUB_PLUGIN_GROUPS,
+  pluginById,
+  isPluginEnabled,
+  readStatuses,
+  writeOverride,
+  resolveActivation,
+  dependentsOf,
+} from './plugins-state.js';
 
 const SELF = 'dsh-plugin-hub';
 
@@ -42,8 +53,51 @@ const SYSTEM_GROUP_META: Record<string, string> = {
   core: '核心服务', ui: '界面增强', tool: '开发工具', other: '其他系统组件',
 };
 
+/**
+ * hub 自己的归属分组（`hub`）。
+ *
+ * 之前 hub 的包内子插件（`dsh-plugin-hub/extensions/*`）在 Loader 里是独立条目、
+ * 又在 profile 依赖表里查不到，于是被当成「系统组件」扫进 `other`（其他系统组件）——
+ * 结果商店的插件和 DSH 自带基建混在一个兜底桶里。现在凡是归属 hub 的一律进这里，
+ * 与系统条目彻底分开。
+ */
+const HUB_GROUP = 'hub';
+const HUB_GROUP_LABEL = '插件商店';
+
+/**
+ * 非系统兜底分组。
+ *
+ * `other`（其他系统组件）从此**只属于系统轨**：用户装的东西要么归到声明的分组，
+ * 要么落这里，绝不会再冒充系统组件。
+ */
+const THIRD_PARTY_GROUP = 'thirdparty';
+const THIRD_PARTY_GROUP_LABEL = '第三方插件';
+
+/**
+ * 判断一个 Loader 条目 / 依赖名是否归属 hub 包。
+ *
+ * 命中两种写法：
+ *   - `dsh-plugin-hub`              —— 商店本体
+ *   - `dsh-plugin-hub/extensions/*` —— 包内子插件（一个包、多个内部插件）
+ */
+export function hubOwnedOf(packageName: string): boolean {
+  const p = String(packageName ?? '').toLowerCase();
+  return p === SELF || p.startsWith(`${SELF}/`) || p.startsWith(`${SELF}\\`);
+}
+
+/** 包内子插件的短 id：`dsh-plugin-hub/extensions/usage` → `usage`；本体返回 null。 */
+export function hubSubIdOf(packageName: string): string | null {
+  const m = String(packageName ?? '').match(/^dsh-plugin-hub[\\/]extensions[\\/](.+)$/i);
+  return m === null ? null : m[1];
+}
+
+/** `file:` / `link:` / `workspace:` 安装 = 本地自创作（与依赖循环口径一致）。 */
+export function isLocalSpec(spec: unknown): boolean {
+  return /^(?:file:|link:|workspace:)/.test(String(spec ?? ''));
+}
+
 /** Map a Loader entry id to a system sub-group bucket. */
-function systemGroupOf(entryId: string, packageName: string): string {
+export function systemGroupOf(entryId: string, packageName: string): string {
   const id = String(entryId ?? '').toLowerCase();
   const pkg = String(packageName ?? '').toLowerCase();
   if (id === 'include' || id === 'timer' || id === 'hmr' || id === 'modules' || id === 'runtime' || id === 'connection' || id === 'api-gateway' || id === 'api-remotes') return 'core';
@@ -93,6 +147,8 @@ interface ProjectedPlugin {
   hasGit: boolean;
   /** Trust level from the ecosystem index; null = unknown. */
   trustLevel: string | null;
+  /** True when the row came from the bundled seed catalog (not from a sync yet). */
+  seed: boolean;
   /** Health snapshot (estimated, no live issue fetch) — set by list() for sorting only. */
   health?: number;
 }
@@ -172,13 +228,24 @@ function resolveTokenMask(token: string | null): string {
   return token.length <= 4 ? '••••' : `••••${token.slice(-4)}`;
 }
 
+/**
+ * cordis fiber 状态码 → 官方 Plugins 清单页用的阶段名。
+ * 序号与 web 端 boot 表的映射一致（pending/loading/active/failed/disposed/unloading）。
+ */
+const FIBER_PHASES = ['pending', 'loading', 'active', 'failed', 'disposed', 'unloading'] as const;
+function fiberPhaseName(state: number | undefined): string | null {
+  if (typeof state !== 'number') return null;
+  return FIBER_PHASES[state] ?? null;
+}
+
 /** The long-lived host service behind `ctx.pluginStore`. */
 export class PluginStoreService extends TypertRemoteService {
   static inject = ['loader'];
   db: StoreDB;
   github: GitHubClient;
   profile: ProfileInfo;
-  private ctx: any;
+  /** 保存自己的 Context：基类 Service 已有一个公开 `ctx`，这里必须换名避免覆盖。 */
+  private appCtx: any;
   private syncing = false;
   private timer: NodeJS.Timeout | null = null;
   private lastSyncError: string | null = null;
@@ -219,7 +286,7 @@ export class PluginStoreService extends TypertRemoteService {
 
   constructor(ctx: any, config: Record<string, unknown> = {}) {
     super(ctx, 'pluginStore');
-    this.ctx = ctx;
+    this.appCtx = ctx;
     this.db = storeDB();
     this.github = new GitHubClient(this.db.getMeta('github_token'));
     this.profile = resolveProfile((ctx as { loader: { ctx: { baseUrl?: string } } }).loader.ctx.baseUrl);
@@ -234,7 +301,7 @@ export class PluginStoreService extends TypertRemoteService {
   }
 
   private get loader(): any {
-    return (this.ctx as any).loader;
+    return (this.appCtx as any).loader;
   }
 
   private scheduleTimer(): void {
@@ -382,6 +449,8 @@ export class PluginStoreService extends TypertRemoteService {
       hasNpm: onNpm,
       hasGit: Boolean(row.repoFullName),
       trustLevel: row.trustLevel ?? null,
+      // 预置目录写入的行带 `seed:` 前缀的 syncedAt；真实同步写入的是 ISO 时间。
+      seed: row.syncedAt.startsWith('seed:'),
     };
   }
 
@@ -1358,6 +1427,13 @@ export class PluginStoreService extends TypertRemoteService {
     const deps = (manifest.dependencies ?? {}) as Record<string, string>;
     const depNames = new Set(Object.keys(deps));
 
+    // hub 本体怎么装的，包内子插件就跟着走：本地 file:/link: ⇒ 自创作，
+    // 其余（npm / registry）⇒ 下载。这样一整包 hub 的东西始终待在同一大类下。
+    const hubCategory: 'own' | 'download' = isLocalSpec(deps[SELF]) ? 'own' : 'download';
+    // 包内子插件自己上报的运行阶段（'usage' → active 等），用于给行填真实状态。
+    let hubStatuses: Record<string, { phase?: string }> = {};
+    try { hubStatuses = readStatuses() as Record<string, { phase?: string }>; } catch { /* 状态文件不可读 */ }
+
     // 1) System-side entries from the Loader itself — only true infrastructure
     //    (entries NOT backed by an installed dependency package).
     for (const entry of loaderEntries) {
@@ -1368,6 +1444,33 @@ export class PluginStoreService extends TypertRemoteService {
       // it (download/own). Do NOT add to `seen` here, or the loop below will
       // skip it entirely and the plugin disappears from the list.
       if (depNames.has(pkgName)) continue;
+      // 归属 hub 的包内子插件：它不是 DSH 基建，而是商店自带的一部分。
+      // 归到「插件商店」分组、非系统大类，并可按条目单独开关。
+      // name 保持 Loader 里的模块标识（`dsh-plugin-hub/extensions/xxx`），
+      // 因为开关操作要靠它回写 patch 行；显示层再美化。
+      if (hubOwnedOf(pkgName)) {
+        seen.add(id);
+        const subId = hubSubIdOf(pkgName);
+        const reported = subId === null ? void 0 : hubStatuses[subId];
+        result.push({
+          packageName: pkgName,
+          entryId: id,
+          name: pkgName,
+          category: hubCategory,
+          group: HUB_GROUP,
+          groupLabel: HUB_GROUP_LABEL,
+          enabled: !entry.disabled,
+          phase: reported?.phase ?? null,
+          managed: true,
+          protected: false,
+          type: hubCategory,
+          localPath: null,
+          published: false,
+          repoUrl: null,
+          uninstallable: false,
+        });
+        continue;
+      }
       seen.add(id);
       const protectedEntry = PROTECTED_ENTRY_IDS.has(id);
       result.push({
@@ -1385,6 +1488,7 @@ export class PluginStoreService extends TypertRemoteService {
         localPath: null,
         published: false,
         repoUrl: null,
+        uninstallable: false,
       });
     }
 
@@ -1405,8 +1509,8 @@ export class PluginStoreService extends TypertRemoteService {
       seen.add(name);
       const specValue = String(spec ?? '');
       const isLocal = /^(?:file:|link:|workspace:)/.test(specValue);
-      let group = 'other';
-      let groupLabel = '其他插件';
+      let group: string = THIRD_PARTY_GROUP;
+      let groupLabel: string = THIRD_PARTY_GROUP_LABEL;
       let isDsh = false;
       let localPath: string | null = null;
       let published = false;
@@ -1422,9 +1526,15 @@ export class PluginStoreService extends TypertRemoteService {
         // 可扩展类：扩展 hub 能力的插件（dsh-bench 等，keyword: hub-ext）
         const isHubExt = keywords.includes('hub-ext');
         const labelMap: Record<string, string> = {
-          core: '核心服务', ui: '界面增强', tool: '开发工具', llm: '模型与 LLM', agent: 'Agent', workflow: '工作流', data: '数据处理', notification: '通知', hubExt: '可扩展类', other: '其他插件',
+          core: '核心服务', ui: '界面增强', tool: '开发工具', llm: '模型与 LLM', agent: 'Agent', workflow: '工作流', data: '数据处理', notification: '通知', hubExt: '可扩展类', hub: HUB_GROUP_LABEL, thirdparty: THIRD_PARTY_GROUP_LABEL,
         };
-        group = typeof declared === 'string' && declared ? declared : isHubExt ? 'hubExt' : isDsh ? 'tool' : 'other';
+        // 商店本体永远归「插件商店」；其余按 声明 → hub-ext 关键字 → dsh → 第三方兜底。
+        // 兜底不再落 `other`：那顶帽子只留给系统轨（其他系统组件）。
+        group = name === SELF
+          ? HUB_GROUP
+          : typeof declared === 'string' && declared
+            ? declared
+            : isHubExt ? 'hubExt' : isDsh ? 'tool' : THIRD_PARTY_GROUP;
         groupLabel = labelMap[group] ?? group;
         if (isLocal) localPath = pkgPath.replace(/[\\/]package\.json$/, '');
         // Remember the package's declared repository (owner/name) for
@@ -1442,8 +1552,8 @@ export class PluginStoreService extends TypertRemoteService {
           repoUrl = typeof repo === 'string' && repo ? repo : null;
           published = onNpm === true || repoUrl !== null;
         }
-      } catch { group = 'other'; groupLabel = '其他插件'; }
-      if (!isDsh && group === 'tool') { group = 'other'; groupLabel = '其他插件'; }
+      } catch { group = THIRD_PARTY_GROUP; groupLabel = THIRD_PARTY_GROUP_LABEL; }
+      if (!isDsh && group === 'tool') { group = THIRD_PARTY_GROUP; groupLabel = THIRD_PARTY_GROUP_LABEL; }
       const managed = patchSource.includes(`id: ${name}`);
       // Category by source ownership: local install ⇒ user's own plugin.
       const category = isLocal ? 'own' : 'download';
@@ -1468,6 +1578,7 @@ export class PluginStoreService extends TypertRemoteService {
         version: localVersion || null,
         latestVersion,
         hasUpdate: semverLt(localVersion, latestVersion),
+        uninstallable: true,
       });
     }
     this.installedCache = { at: Date.now(), value: result };
@@ -1561,6 +1672,124 @@ export class PluginStoreService extends TypertRemoteService {
       dependencies: this.db.dependenciesOf(name),
       dependents,
     };
+  }
+
+  /**
+   * hub 内建插件名册 + 实时状态（0.2 的「一个包、多个内部插件」）。
+   *
+   * 数据来源四处合一：
+   *   - `HUB_PLUGINS`：静态名册（包内事实，编译期确定）
+   *   - `plugins.json`：用户开关（本 Remote 与插件同时读同一份）
+   *   - `plugins-status.json`：各插件自己上报的运行阶段
+   *   - loader 里对应行的真实阶段
+   * 于是 UI 能区分「关掉了」「依赖没开让位了」「开了但没起来」三种情况。
+   */
+  @Remote('extensions')
+  async extensions(): Promise<Record<string, unknown>> {
+    const statuses = readStatuses();
+    const loaderPhases = new Map<string, string | null>();
+    try {
+      for (const entry of [...this.loader.entries()] as Array<{ options: { id?: string; name?: string }; fiber?: { state?: number } }>) {
+        const id = entry.options?.id ?? entry.options?.name;
+        if (typeof id === 'string') loaderPhases.set(id, fiberPhaseName(entry.fiber?.state));
+      }
+    } catch {
+      // loader 不可用时只少了 loaderPhase，不影响开关与状态展示。
+    }
+    const rows = HUB_PLUGINS.map((plugin) => {
+      const status = statuses[plugin.id];
+      const decision = resolveActivation(plugin.id);
+      return {
+        id: plugin.id,
+        rowId: plugin.rowId,
+        entry: plugin.entry,
+        name: plugin.name,
+        nameEn: plugin.nameEn,
+        description: plugin.description,
+        descriptionEn: plugin.descriptionEn,
+        group: plugin.group,
+        requires: [...plugin.requires],
+        dependents: dependentsOf(plugin.id).map((d) => ({ id: d.id, name: d.name })),
+        /** 自己的开关值（不含依赖判定）。 */
+        enabled: decision.enabled,
+        /** 开关 + 依赖都满足 → 真的在跑。 */
+        runnable: decision.runnable,
+        /** 因依赖没开而让位时，列出缺的那几个。 */
+        blockedBy: decision.missing.map((d) => ({ id: d.id, name: d.name })),
+        phase: status?.phase ?? 'idle',
+        detail: status?.detail ?? '',
+        reportedAt: status?.at ?? 0,
+        service: plugin.service,
+        ui: plugin.ui,
+        order: plugin.order,
+        loaderPhase: loaderPhases.get(plugin.rowId) ?? null,
+      };
+    });
+    return {
+      currentPriceVersion: currentVersion(),
+      pluginCount: HUB_PLUGINS.length,
+      activeCount: rows.filter((r) => r.phase === 'active').length,
+      groups: [...HUB_PLUGIN_GROUPS],
+      rows,
+    };
+  }
+
+  /**
+   * 开关一个内建插件。写入 `plugins.json`（插件启动时读同一份），
+   * 因此**重启 dsh 后生效** —— 与 harness 自身的插件开关语义一致。
+   */
+  @Remote('extensionSet')
+  async extensionSet(id: string, enabled: boolean): Promise<Record<string, unknown>> {
+    const key = String(id).trim();
+    const plugin = pluginById(key);
+    if (plugin === undefined) return { ok: false, message: `未知内建插件：${key}`, detail: null };
+
+    // 关掉一个「别人还依赖着」的插件时，把连带影响说清楚 —— 但不阻止，
+    // 用户有权关掉任何东西；依赖判定会让下游自动 blocked，随时能开回来。
+    const affected = enabled ? [] : dependentsOf(plugin.id);
+    if (affected.length > 0 && !enabled) {
+      const names = affected.map((d) => d.name).join('、');
+      const throttled = this.throttle('extensionSet', 60);
+      if (throttled) return { ok: false, message: throttled, detail: null };
+      try {
+        writeOverride(plugin.id, false);
+        this.appendAudit('extension', plugin.rowId, 'ok', `${plugin.id} → disabled（连带 ${affected.map((d) => d.id).join(',')}）`);
+        return {
+          ok: true,
+          message: `「${plugin.name}」已关闭`,
+          detail: `${names} 依赖它，重启后会显示「依赖阻塞」并让位；想恢复就把「${plugin.name}」再打开。`,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.appendAudit('extension', plugin.rowId, 'failed', message);
+        return { ok: false, message, detail: null };
+      }
+    }
+
+    const throttled = this.throttle('extensionSet', 60);
+    if (throttled) return { ok: false, message: throttled, detail: null };
+    try {
+      writeOverride(plugin.id, Boolean(enabled));
+      this.appendAudit('extension', plugin.rowId, 'ok', `${plugin.id} → ${enabled ? 'enabled' : 'disabled'}`);
+      return {
+        ok: true,
+        message: `「${plugin.name}」已${enabled ? '开启' : '关闭'}`,
+        detail: '重启 dsh 后生效（插件在启动时读取开关）',
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.appendAudit('extension', plugin.rowId, 'failed', message);
+      return { ok: false, message, detail: null };
+    }
+  }
+
+  /**
+   * 版本化价格表快照 —— 「当时价 vs 现价」的口径来源。
+   * 单独开这个 Remote，是为了让其它插件复用同一份价格表而不必各自硬编码单价。
+   */
+  @Remote('pricingTable')
+  async pricingTable(): Promise<Record<string, unknown>> {
+    return { current: currentVersion(), versions: historySnapshot() };
   }
 
   @Remote('scaffold')

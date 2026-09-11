@@ -14,7 +14,7 @@ import { IconCordisPluginOutline14, Tooltip } from '@deepseek-ai/dsh-client-ui-p
 import { TYPERT_REMOTE, makeApi, openStore, openStoreStore, type RemoteApi } from './api';
 import { StoreApp } from './StoreApp';
 import { StoreSettingsSection } from './settings-section';
-import { InsightsUsageView } from './insights';
+import { mountUsageView, usageDictionaries, USAGE_NS } from './extensions/usage/index';
 import storeCss from './store.css';
 
 // Inject the stylesheet once (the same `data-plugin-css` pattern the shell uses).
@@ -278,6 +278,7 @@ const zh = {
   'filter.installedOnly': '仅看已安装',
   'downloads.title': 'npm 上月真实下载量（未发布则无）',
   'downloads.unknown': 'npm 未查询到',
+  'seed.title': '随插件商店一起发布的预置目录条目：无需联网、同步完成前也能浏览与安装；同步后会被真实元数据覆盖。',
   // ---- installed view ----
   'installed.title': '已安装插件',
   'installed.system': '系统插件',
@@ -302,8 +303,10 @@ const zh = {
   'installed.group.workflow': '工作流',
   'installed.group.data': '数据处理',
   'installed.group.notification': '通知',
-  'installed.group.other': '其他',
+  'installed.group.other': '其他系统组件',
   'installed.group.hubExt': '可扩展类',
+  'installed.group.hub': '插件商店',
+  'installed.group.thirdparty': '第三方插件',
   // ---- settings view ----
   'settings.title': '插件商店设置',
   'settings.operator': '操作者身份（审计日志用）',
@@ -609,6 +612,7 @@ const en: Record<keyof typeof zh, string> = {
   'filter.installedOnly': 'Installed only',
   'downloads.title': 'Real npm monthly downloads (none if unpublished)',
   'downloads.unknown': 'npm n/a',
+  'seed.title': 'Bundled seed catalog entry: browsable and installable offline, before the first sync overwrites it with real metadata.',
   // ---- installed view ----
   'installed.title': 'Installed plugins',
   'installed.system': 'System plugins',
@@ -633,8 +637,10 @@ const en: Record<keyof typeof zh, string> = {
   'installed.group.workflow': 'Workflow',
   'installed.group.data': 'Data',
   'installed.group.notification': 'Notifications',
-  'installed.group.other': 'Other',
+  'installed.group.other': 'Other system components',
   'installed.group.hubExt': 'Hub Extensions',
+  'installed.group.hub': 'Plugin Store',
+  'installed.group.thirdparty': 'Third-party plugins',
   // ---- settings view ----
   'settings.title': 'Plugin Store Settings',
   'settings.operator': 'Operator identity (used in audit log)',
@@ -692,7 +698,6 @@ const en: Record<keyof typeof zh, string> = {
 };
 
 export const inject = ['slots', 'locale', 'remote'];
-
 function useOpenStore(): boolean {
   return useSyncExternalStore(openStoreStore.subscribe, openStoreStore.getSnapshot, openStoreStore.getSnapshot);
 }
@@ -726,6 +731,12 @@ function StoreEntryButton({ wide, api, t }: { wide: boolean; api: RemoteApi; t: 
 export async function apply(ctx: any): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(TYPERT_REMOTE);
   const disposeLocale = ctx.locale.register(NS, { zh, en });
+  // 内置扩展的字典也在这里注册：hub 一个包只有一份 client bundle。
+  const disposeUsageLocale = ctx.locale.register(USAGE_NS, usageDictionaries);
+
+  /** 内置扩展注册的 UI feature（与 hub 核心一起收放）。 */
+  const extensionFeatures: Array<{ dispose: () => Promise<void> }> = [];
+  let disposed = false;
 
   const feature = ctx.inject(['remote.pluginStore'], (scope: any) => {
     const api: RemoteApi = makeApi(scope.remote);
@@ -741,7 +752,7 @@ export async function apply(ctx: any): Promise<() => Promise<void>> {
       inject: () => ({ api, t }),
     }, StoreEntryButton));
 
-    // 2. Native settings section (token + mirror + open store).
+    // 2. Native settings section (token + mirror + open store + extension switches).
     scope.slots.inject('settings.section', () => scope.slots.register({
       name: 'settings.section',
       id: 'plugin-store',
@@ -751,25 +762,31 @@ export async function apply(ctx: any): Promise<() => Promise<void>> {
       inject: () => ({ api, openStore }),
     }, StoreSettingsSection));
 
-    // 3. 0.1.3 insights: 用量视图 tab — registered into the conversation
-    //    view ring (list kind, sits beside 对话/轨迹 tabs). NOT the details
-    //    column: details is a single-kind slot already owned by the stock
-    //    DetailsPanel, and a second injection there breaks the whole plugin.
-    scope.slots.inject('conversation.view', () => scope.slots.register({
-      name: 'conversation.view',
-      id: 'plugin-store-usage',
-      order: 15,
-      locale: NS,
-      label: () => t('usage.tab'),
-      inject: (sessionId: string) => ({ sessionId, t }),
-    }, InsightsUsageView));
+    // 3. 内置扩展的 UI（0.2：hub 一个包、多个可开关的内部插件）。
+    //
+    //    开关的唯一来源是 host 的 `extensions` Remote（它读的是扩展自己也在读的
+    //    那份 `extensions.json`）。于是"host 让位"与"UI 不出现"天然一致 ——
+    //    不会再出现 0.1.x 那种重复注册（两个「用量」tab）或注册了却没有服务的半死状态。
+    //
+    //    注意：视图必须挂在 hub 的 client 里（一个包只能有一份 client 产物，
+    //    见 harness 的 dsh.client 契约），所以扩展是"内部模块"而不是独立包。
+    void scope.remote.pluginStore.extensions().then((snapshot: { rows?: Array<{ id: string; enabled: boolean }> }) => {
+      if (disposed) return;
+      const enabled = new Set((snapshot?.rows ?? []).filter((row) => row.enabled).map((row) => row.id));
+      if (enabled.has('usage')) extensionFeatures.push(mountUsageView(ctx));
+    }).catch(() => { /* 读不到开关时只挂核心 UI，不影响商店本身 */ });
 
     return () => {};
   });
 
   return async () => {
+    disposed = true;
+    for (const extension of extensionFeatures.splice(0)) {
+      try { await extension.dispose(); } catch { /* 已随包卸载 */ }
+    }
     await feature.dispose();
     disposeLocale();
+    disposeUsageLocale();
     await disposeRemote();
   };
 }

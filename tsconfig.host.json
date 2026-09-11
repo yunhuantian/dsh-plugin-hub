@@ -14,5 +14,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node"]
   },
-  "include": ["src/contracts/**/*.ts", "src/host/**/*.ts"]
+  "include": ["src/contracts/**/*.ts", "src/host/**/*.ts", "src/extensions/**/*.ts"]
 }

@@ -1,0 +1,58 @@
+/* dsh-usage —— 用量与费用视图样式
+ *
+ * 独立前缀 dsu-（dsh-usage）：与该插件的其它视图及其它插件样式隔离。
+ * 颜色全部走 Harness 设计令牌（--dsw-alias-*），自动适配明暗主题。
+ */
+
+/* ---- 根容器 ---- */
+.dsu-root { padding: 20px; }
+
+/* ---- 汇总卡 ---- */
+.dsu-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.dsu-card {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px;
+  border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.dsu-card-label { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+.dsu-card-value { font-size: 15px; font-weight: 500; color: var(--dsw-alias-label-primary); font-variant-numeric: tabular-nums; }
+
+/* ---- 时间轴图表 ---- */
+.dsu-chart-wrap { position: relative; }
+.dsu-chart {
+  width: 100%; height: auto; display: block;
+  border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.dsu-chart-hint {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; color: var(--dsw-alias-label-secondary);
+  background: color-mix(in srgb, var(--dsw-alias-interactive-bg-hover) 85%, transparent);
+  border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px; padding: 2px 10px;
+  pointer-events: none; white-space: nowrap;
+}
+
+/* ---- 图例 ---- */
+.dsu-legend { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 11px; color: var(--dsw-alias-label-secondary); }
+.dsu-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.dsu-legend-item i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+/* ---- 模型分布 / 价格表信息 ---- */
+.dsu-meta {
+  font-size: 12px; color: var(--dsw-alias-label-secondary);
+  border-top: 1px solid var(--dsw-alias-border-l2); padding-top: 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.dsu-meta-title { font-weight: 500; color: var(--dsw-alias-label-primary); font-size: 12px; }
+.dsu-meta-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.dsu-meta-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsu-warn { font-size: 11px; color: #b87517; background: rgba(186, 117, 23, .1); border-radius: 6px; padding: 6px 8px; }
+.dsu-muted { color: var(--dsw-alias-label-tertiary); font-size: 12px; margin-left: 6px; }
+
+/* ---- tab 体 / 空态 ---- */
+.dsu-tab-body { display: flex; flex-direction: column; gap: 12px; }
+.dsu-empty { color: var(--dsw-alias-label-tertiary); font-size: 13px; padding: 24px 8px; text-align: center; }
+.dsu-empty p { margin: 4px 0; }
+
+/* ---- 汇总卡副标题（当时价 / 现价的差额说明）---- */
+.dsu-card-sub { font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }

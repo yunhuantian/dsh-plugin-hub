@@ -190,6 +190,7 @@ function Discover({ api, onOpen, onChanged, t }: DiscoverProps): ReactNode {
       <p className="dps-card-desc">{p.shortDescription || '（暂无描述）'}</p>
       <div className="dps-card-meta">
         <TrustBadge level={p.trustLevel} t={t} />
+        {p.seed === true && <span className="dps-seed-chip" title={t('seed.title')}>预置</span>}
         <CategoryBadges categories={p.categories} t={t} />
         <div className="dps-card-stats">
           <SourceBadge source={p.source} t={t} />
@@ -964,11 +965,22 @@ export function Detail({ api, packageName, onBack, onChanged, t }: DetailProps):
 
 const INSTALLED_GROUP_LABEL: Record<string, string> = {
   core: '核心服务', ui: '界面增强', tool: '开发工具', llm: '模型与 LLM', agent: 'Agent',
-  workflow: '工作流', data: '数据处理', notification: '通知', hubExt: '可扩展类', other: '其他',
+  workflow: '工作流', data: '数据处理', notification: '通知', hubExt: '可扩展类',
+  hub: '插件商店', thirdparty: '第三方插件', other: '其他系统组件',
 };
 
 // Full set of installable group keys — fed into the t() lookup below.
-const GROUP_KEYS = ['core', 'ui', 'tool', 'llm', 'agent', 'workflow', 'data', 'notification', 'other'] as const;
+const GROUP_KEYS = ['hub', 'core', 'ui', 'tool', 'llm', 'agent', 'workflow', 'data', 'notification', 'hubExt', 'thirdparty', 'other'] as const;
+
+/**
+ * hub 归属行的显示名：`dsh-plugin-hub/extensions/usage` → `usage`（带商店图标）。
+ * 完整模块标识仍留在 title 上，出问题时能直接看到真正的 entry。
+ */
+function installedRowLabel(p: { group: string; name: string }): string {
+  if (p.group !== 'hub') return p.name;
+  const seg = p.name.split(/[\\/]/).pop() ?? p.name;
+  return p.name.includes('/') ? `🧩 ${seg}` : p.name;
+}
 
 function Installed({ api, onOpen, t }: { api: RemoteApi; onOpen: (name: string) => void; t: (key: string) => string }): ReactNode {
   const [list, setList] = useState<InstalledPlugin[] | null>(null);
@@ -1048,7 +1060,7 @@ function Installed({ api, onOpen, t }: { api: RemoteApi; onOpen: (name: string) 
             {items.map((p) => (
               <div key={p.packageName} className={`dps-inst-row${p.enabled ? '' : ' off'}`}>
                 <div className="dps-inst-info" role="button" tabIndex={0} onClick={() => onOpen(p.packageName)} onKeyDown={(e) => { if (e.key === 'Enter') onOpen(p.packageName); }}>
-                  <span className="dps-inst-name" title={p.packageName}>{p.name}</span>
+                  <span className="dps-inst-name" title={p.packageName}>{installedRowLabel(p)}</span>
                   {p.localPath && <span className="dps-inst-path" title={p.localPath}>📁 {p.localPath}</span>}
                   {p.category === 'own' && p.published && (
                     <a className="dps-badge dps-badge-npm" href={p.repoUrl ?? `https://www.npmjs.com/package/${encodeURIComponent(p.packageName)}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} title={p.repoUrl ?? 'npm 已发布'}>📦 已发布</a>
@@ -1065,7 +1077,7 @@ function Installed({ api, onOpen, t }: { api: RemoteApi; onOpen: (name: string) 
                 </div>
                 <div className="dps-inst-actions">
                   {switchCtl(p)}
-                  {!p.protected && (
+                  {!p.protected && p.uninstallable !== false && (
                     <button type="button" className="dps-icon-btn" title={p.packageName === 'dsh-plugin-hub' ? '卸载插件商店' : t('action.uninstall')} disabled={busy === p.packageName} onClick={() => void remove(p)}>
                       <IconTrashOutline16 size={14} />
                     </button>
@@ -1087,7 +1099,11 @@ function Installed({ api, onOpen, t }: { api: RemoteApi; onOpen: (name: string) 
       if (!groups.has(g)) groups.set(g, []);
       groups.get(g)!.push(p);
     }
-    const order = cat === 'system' ? ['core', 'ui', 'tool', 'other'] : ['core', 'ui', 'tool', 'llm', 'agent', 'workflow', 'data', 'notification', 'other'];
+    // 系统轨仍留 `other`（其他系统组件）；非系统轨把「插件商店」放最前，
+    // 兜底从 `other` 换成 `thirdparty` —— 「其他」从此只出现在系统轨里。
+    const order = cat === 'system'
+      ? ['core', 'ui', 'tool', 'other']
+      : ['hub', 'core', 'ui', 'tool', 'llm', 'agent', 'workflow', 'data', 'notification', 'hubExt', 'thirdparty'];
     const groupKeys = [...groups.keys()].sort((a, b) => {
       const ia = order.indexOf(a); const ib = order.indexOf(b);
       return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);

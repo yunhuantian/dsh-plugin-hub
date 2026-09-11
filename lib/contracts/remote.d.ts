@@ -62,6 +62,7 @@ export declare const pluginSummary: z.ZodReadonly<z.ZodObject<{
     hasNpm: z.ZodBoolean;
     hasGit: z.ZodBoolean;
     trustLevel: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    seed: z.ZodOptional<z.ZodBoolean>;
     health: z.ZodNumber;
 }, z.core.$strip>>;
 export declare const pluginListResult: z.ZodReadonly<z.ZodObject<{
@@ -104,6 +105,7 @@ export declare const pluginListResult: z.ZodReadonly<z.ZodObject<{
         hasNpm: z.ZodBoolean;
         hasGit: z.ZodBoolean;
         trustLevel: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        seed: z.ZodOptional<z.ZodBoolean>;
         health: z.ZodNumber;
     }, z.core.$strip>>>>;
 }, z.core.$strip>>;
@@ -315,6 +317,7 @@ export declare const installedPlugin: z.ZodReadonly<z.ZodObject<{
     phase: z.ZodNullable<z.ZodString>;
     managed: z.ZodBoolean;
     protected: z.ZodBoolean;
+    uninstallable: z.ZodBoolean;
     type: z.ZodString;
     localPath: z.ZodNullable<z.ZodString>;
     published: z.ZodBoolean;

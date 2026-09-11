@@ -1,4 +1,104 @@
-# Plugin Hub bundle patch: register the host plugin entry in the web profile.
+# dsh-plugin-hub bundle patch —— 插件商店本体 + 21 个内建插件，一次插入。
+#
+# ── 组织方式与 DSH 本体一致 ─────────────────────────────────────────────────
+# `@deepseek-ai/dsh-base` 一个包、一次发布，但 patch 里排了 60+ 个具名条目。
+# hub 照这个来：**一个 npm 包、一次发布**，内部由 21 个具名插件组成，各占一行。
+# 行名称支持包子路径，所以内建插件都从同一个包里取：
+#   dsh-plugin-hub/extensions/security  →  lib/extensions/security.js
+# 因此「设置 → 插件」清单页里 hub 会展开成 22 行，每行可单独看到加载状态。
+#
+# ── 依赖与开关 ──────────────────────────────────────────────────────────────
+# 依赖是**声明式**的（写在 src/host/plugins-state.ts 的名册里，不在本文件）：
+# 例如 registry 依赖 store-db + github，publish 依赖 security。
+# 运行时判定在 `activate()`：依赖没开 → 消费者上报 blocked 并主动让位，
+# 不提供服务也不注册 UI；随时开回来即恢复。这样避免 cordis 硬 inject 造成的
+# "提供者被停用 → 消费者永久 pending" 死锁。
+#
+# 日常开关在商店设置页，写 `storages/plugin-store/plugins.json`，重启 dsh 生效。
+# 默认值与名册里的 defaultEnabled 保持一致：changelog / baike / skill-store /
+# diagnostics 四个默认关闭，其余默认开。
+#
+# ⚠️ 这四行**不要写 `disabled: true`**：写了 loader 就不会加载它们，模块也就没机会
+# 读设置页的开关 —— 表现为"打开了但没反应"。默认关闭必须由模块自己让位
+# （activate 读 plugins.json 后上报 disabled），行照常加载，开关才可逆。
+#
+# 后来的 patch 层（profile 的 cordis.patch.yml、--patch 覆盖）可按 id 覆盖这些行。
+
 - insert:
+    # ══ 本体：商店 UI 与 Remote（发现 / 安装 / 已安装 / 发布 / 审计 / 同步）══
     - id: dsh-plugin-hub
       name: dsh-plugin-hub
+
+    # ══ 基础内核 foundation（6）══════════════════════════════════════════════
+    - id: hub-ext-store-db
+      name: dsh-plugin-hub/extensions/store-db
+
+    - id: hub-ext-github
+      name: dsh-plugin-hub/extensions/github
+
+    - id: hub-ext-npm-probe
+      name: dsh-plugin-hub/extensions/npm-probe
+
+    # 离线预置目录：装好即有内容，不必等镜像同步。
+    - id: hub-ext-seed-catalog
+      name: dsh-plugin-hub/extensions/seed-catalog
+
+    - id: hub-ext-registry
+      name: dsh-plugin-hub/extensions/registry
+
+    - id: hub-ext-installer
+      name: dsh-plugin-hub/extensions/installer
+
+    # ══ 安全与质量 safety（4）════════════════════════════════════════════════
+    - id: hub-ext-security
+      name: dsh-plugin-hub/extensions/security
+
+    - id: hub-ext-conflict
+      name: dsh-plugin-hub/extensions/conflict
+
+    - id: hub-ext-quality
+      name: dsh-plugin-hub/extensions/quality
+
+    - id: hub-ext-trust
+      name: dsh-plugin-hub/extensions/trust
+
+    # ══ 发布流水线 publish（3）═══════════════════════════════════════════════
+    - id: hub-ext-publish
+      name: dsh-plugin-hub/extensions/publish
+
+    - id: hub-ext-version-guard
+      name: dsh-plugin-hub/extensions/version-guard
+
+    # 默认关闭由名册的 defaultEnabled 决定（本行**不写 disabled**）——
+    # 行照常加载、模块主动让位，这样设置页把它打开后重启就能生效。
+    - id: hub-ext-changelog
+      name: dsh-plugin-hub/extensions/changelog
+
+    # ══ 洞察与内容 insight（6）═══════════════════════════════════════════════
+    # 对话视图的「用量」tab 由本包 client 半边按同一开关注册。
+    - id: hub-ext-usage
+      name: dsh-plugin-hub/extensions/usage
+
+    - id: hub-ext-health
+      name: dsh-plugin-hub/extensions/health
+
+    - id: hub-ext-update-check
+      name: dsh-plugin-hub/extensions/update-check
+
+    - id: hub-ext-dependency-graph
+      name: dsh-plugin-hub/extensions/dependency-graph
+
+    # 以下两个默认关闭（同上，不写 disabled）：依赖外部数据源，按需开启。
+    - id: hub-ext-baike
+      name: dsh-plugin-hub/extensions/baike
+
+    - id: hub-ext-skill-store
+      name: dsh-plugin-hub/extensions/skill-store
+
+    # ══ 运维 ops（2）════════════════════════════════════════════════════════
+    - id: hub-ext-backup
+      name: dsh-plugin-hub/extensions/backup
+
+    # 默认关闭（同上，不写 disabled）：排查时才需要。
+    - id: hub-ext-diagnostics
+      name: dsh-plugin-hub/extensions/diagnostics
