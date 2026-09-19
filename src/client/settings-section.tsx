@@ -12,9 +12,12 @@ interface SectionProps {
   api: RemoteApi;
   openStore: () => void;
   close?: () => void;
+  /** Bound to the `pluginStore` namespace by `apply()`, exactly as the
+   *  sidebar entry receives it. */
+  t: (k: string) => string;
 }
 
-export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNode {
+export function StoreSettingsSection({ api, openStore, t }: SectionProps): ReactNode {
   const [settings, setSettings] = useState<Awaited<ReturnType<RemoteApi['settings']>> | null>(null);
   const [status, setStatus] = useState<Awaited<ReturnType<RemoteApi['syncStatus']>> | null>(null);
   const [extensions, setExtensions] = useState<ExtensionsSnapshot | null>(null);
@@ -85,7 +88,7 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
 
   const saveActor = () => {
     persistActor(actor);
-    setNotice('显示名已保存，后续操作将以该名称记录到审计日志。');
+    setNotice(t('settings.actorSaved'));
   };
 
   /** 开关一个内置扩展：写开关文件，扩展在下次启动时读取。 */
@@ -102,65 +105,59 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
 
   /** 插件上报阶段 → 展示用标签（含"依赖阻塞"与"开了但没起来"的区分）。 */
   const phaseChip = (row: ExtensionRow): { text: string; cls: string } => {
-    if (!row.enabled) return { text: '已关闭', cls: 'off' };
-    if (row.loaderPhase === 'failed' || row.phase === 'failed') return { text: '加载失败', cls: 'off' };
-    if (row.blockedBy.length > 0 || row.phase === 'blocked') return { text: '依赖阻塞', cls: 'blocked' };
-    if (row.phase === 'active') return { text: '运行中', cls: '' };
-    if (row.loaderPhase === null) return { text: '未加载', cls: 'pending' };
-    return { text: '待启动', cls: 'pending' };
+    if (!row.enabled) return { text: t('settings.stateOff'), cls: 'off' };
+    if (row.loaderPhase === 'failed' || row.phase === 'failed') return { text: t('settings.stateLoadFailed'), cls: 'off' };
+    if (row.blockedBy.length > 0 || row.phase === 'blocked') return { text: t('settings.stateBlocked'), cls: 'blocked' };
+    if (row.phase === 'active') return { text: t('settings.stateRunning'), cls: '' };
+    if (row.loaderPhase === null) return { text: t('settings.stateNotLoaded'), cls: 'pending' };
+    return { text: t('settings.statePending'), cls: 'pending' };
   };
 
   return (
     <div className="dps-settings-native">
       <div className="dps-native-hero">
         <IconCordisPluginOutline14 size={18} />
-        <span>插件商店设置</span>
-        <button type="button" className="dps-btn dps-btn-sm dps-btn-primary" onClick={openStore}>打开插件商店</button>
+        <span>{t('settings.title')}</span>
+        <button type="button" className="dps-btn dps-btn-sm dps-btn-primary" onClick={openStore}>{t('settings.open')}</button>
       </div>
-      {error && <div className="dps-error" role="alert"><IconWarningOutline16 size={16} /><span className="dps-error-text">{error}</span><button type="button" className="dps-icon-btn" onClick={() => setError(null)} aria-label="关闭">×</button></div>}
+      {error && <div className="dps-error" role="alert"><IconWarningOutline16 size={16} /><span className="dps-error-text">{error}</span><button type="button" className="dps-icon-btn" onClick={() => setError(null)} aria-label={t('app.close')}>×</button></div>}
       {notice && <div className="dps-notice">{notice}</div>}
 
       <section className="dps-section">
-        <h4 className="dps-section-title"><IconUserOutline16 size={15} /> 操作者身份（审计日志用）</h4>
+        <h4 className="dps-section-title"><IconUserOutline16 size={15} /> {t('settings.operator')}</h4>
         <div className="dps-row">
-          <input className="dps-input" value={actor} placeholder="例如：张三 / zhangsan" maxLength={64} onChange={(e) => setActorName(e.target.value)} />
-          <button type="button" className="dps-btn" onClick={saveActor}>保存显示名</button>
+          <input className="dps-input" value={actor} placeholder={t('settings.actorPlaceholder')} maxLength={64} onChange={(e) => setActorName(e.target.value)} />
+          <button type="button" className="dps-btn" onClick={saveActor}>{t('settings.saveActor')}</button>
         </div>
-        <p className="dps-hint">安装、卸载、启用、禁用、评分等操作会以该名称记录到审计日志，满足企业合规追溯要求。</p>
+        <p className="dps-hint">{t('settings.operatorHint')}</p>
       </section>
 
       <section className="dps-section">
-        <h4 className="dps-section-title"><IconSettingsOutline16 size={15} /> GitHub 私人 Token</h4>
+        <h4 className="dps-section-title"><IconSettingsOutline16 size={15} /> {t('settings.githubToken')}</h4>
         <p className="dps-hint">
-          GitHub API 匿名限频较低（搜索 10 次/分钟、核心 60 次/小时）。配置私人 Token（<code>ghp_…</code>，public_repo 读取权限）后限频大幅提升，
-          镜像同步可完整拉取版本历史。Token 仅保存在本机数据库。
+          {t('settings.tokenHintBefore')}<code>ghp_…</code>{t('settings.tokenHintAfter')}
         </p>
         <div className="dps-row">
-          <input className="dps-input" type="password" value={token} placeholder={settings?.tokenConfigured ? `已配置：${settings.tokenMasked}` : '粘贴 GitHub 私人 Token（ghp_…）'} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
-          <button type="button" className="dps-btn dps-btn-primary" disabled={busy === 'token' || !token.trim()} onClick={() => void saveToken()}>保存</button>
-          {settings?.tokenConfigured && <button type="button" className="dps-btn" disabled={busy === 'token'} onClick={() => void clearToken()}>清除</button>}
+          <input className="dps-input" type="password" value={token} placeholder={settings?.tokenConfigured ? `${t('settings.tokenConfigured')}${settings.tokenMasked}` : t('settings.tokenPastePlaceholder')} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
+          <button type="button" className="dps-btn dps-btn-primary" disabled={busy === 'token' || !token.trim()} onClick={() => void saveToken()}>{t('settings.save')}</button>
+          {settings?.tokenConfigured && <button type="button" className="dps-btn" disabled={busy === 'token'} onClick={() => void clearToken()}>{t('settings.clear')}</button>}
         </div>
         {settings && (
           <p className="dps-hint">
-            当前核心额度：{settings.rateLimitRemaining === null ? '未查询' : `剩余 ${settings.rateLimitRemaining} 次`} · 镜像插件：{settings.pluginCount} 个 ·
-            数据库：<code>{settings.dbPath}</code>
+            {t('settings.quotaLabel')}{settings.rateLimitRemaining === null ? t('settings.uncached') : `${t('settings.quotaRemainingBefore')}${settings.rateLimitRemaining}${t('settings.quotaRemainingAfter')}`}{t('settings.mirroredBefore')}{settings.pluginCount}{t('settings.mirroredAfter')}{t('settings.databaseLabel')}<code>{settings.dbPath}</code>
           </p>
         )}
       </section>
 
       <section className="dps-section">
-        <h4 className="dps-section-title"><IconCordisPluginOutline14 size={15} /> 内建插件（随插件商店一起安装、可单独关闭）</h4>
+        <h4 className="dps-section-title"><IconCordisPluginOutline14 size={15} /> {t('settings.builtinTitle')}</h4>
         <p className="dps-hint">
-          插件商店是<strong>一个包、20 个内建插件</strong>（与 DSH 本体同构）：它们随商店一次安装、一次发布，
-          但可以单独开关，也<strong>声明了彼此依赖</strong>。关掉的插件在启动时让位，不提供服务也不注册界面；
-          依赖没开的插件会显示「依赖阻塞」并自动让位，随时可以开回来。
-          每个内建插件在 DSH 的「设置 → 插件」清单页里也各占一行，可在那里看到加载状态。
-          {extensions && <> 当前价格表版本 <code>v{extensions.currentPriceVersion}</code>。</>}
+          {t('settings.builtinIntroA')}<strong>{t('settings.builtinIntroStrong1')}</strong>{t('settings.builtinIntroC')}<strong>{t('settings.builtinIntroStrong2')}</strong>{t('settings.builtinIntroE')}
+          {extensions && <>{t('settings.priceVersionBefore')}<code>v{extensions.currentPriceVersion}</code>{t('settings.priceVersionAfter')}</>}
         </p>
         {extensions && (
           <div className="dps-ext-summary">
-            共 <strong>{extensions.pluginCount}</strong> 个内建插件 · 运行中 <strong>{extensions.activeCount}</strong> ·
-            关闭 {extensions.rows.filter((r) => !r.enabled).length} · 依赖阻塞 {extensions.rows.filter((r) => r.enabled && r.blockedBy.length > 0).length}
+            {t('settings.tallyBefore')}<strong>{extensions.pluginCount}</strong>{t('settings.tallyAfterTotal')}<strong>{extensions.activeCount}</strong>{t('settings.tallyOff')}{extensions.rows.filter((r) => !r.enabled).length}{t('settings.tallyBlocked')}{extensions.rows.filter((r) => r.enabled && r.blockedBy.length > 0).length}
           </div>
         )}
         {(extensions?.groups ?? []).map((group) => {
@@ -172,7 +169,7 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
               <div className="dps-ext-group-head">
                 <span className="dps-ext-group-name">{group.name}</span>
                 <span className="dps-ext-en">{group.nameEn}</span>
-                <span className="dps-ext-group-count">{running}/{rows.length} 运行中</span>
+                <span className="dps-ext-group-count">{running}/{rows.length}{t('settings.runningSuffix')}</span>
               </div>
               <p className="dps-hint">{group.description}</p>
               <div className="dps-ext-list">
@@ -190,14 +187,14 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
                         <p className="dps-ext-desc">{row.description}</p>
                         <p className="dps-ext-meta">
                           <code>{row.entry}</code>
-                          {row.service !== null && <> · 服务 <code>{row.service}</code></>}
-                          {row.ui !== null && <> · 界面：{row.ui}</>}
+                          {row.service !== null && <>{t('settings.serviceLabel')}<code>{row.service}</code></>}
+                          {row.ui !== null && <>{t('settings.uiLabel')}{row.ui}</>}
                         </p>
                         {(row.requires.length > 0 || row.dependents.length > 0) && (
                           <p className="dps-ext-deps">
                             {row.requires.length > 0 && (
                               <>
-                                <span>依赖：</span>
+                                <span>{t('settings.dependsOn')}</span>
                                 {row.requires.map((dep) => (
                                   <span key={dep} className={`dps-dep-tag${row.blockedBy.some((b) => b.id === dep) ? ' missing' : ''}`}>{dep}</span>
                                 ))}
@@ -205,7 +202,7 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
                             )}
                             {row.dependents.length > 0 && (
                               <>
-                                <span>被依赖：</span>
+                                <span>{t('settings.requiredBy')}</span>
                                 {row.dependents.map((d) => (
                                   <span key={d.id} className="dps-dep-tag" title={d.name}>{d.id}</span>
                                 ))}
@@ -219,10 +216,10 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
                         type="button"
                         className={`dps-btn${row.enabled ? '' : ' dps-btn-primary'}`}
                         disabled={busy === `ext:${row.id}`}
-                        title={blocked ? '依赖的插件没开，开着也不会生效' : undefined}
+                        title={blocked ? t('settings.blockedTooltip') : undefined}
                         onClick={() => void toggleExtension(row.id, !row.enabled)}
                       >
-                        {row.enabled ? '关闭' : '开启'}
+                        {row.enabled ? t('settings.turnOff') : t('settings.turnOn')}
                       </button>
                     </div>
                   );
@@ -231,29 +228,29 @@ export function StoreSettingsSection({ api, openStore }: SectionProps): ReactNod
             </div>
           );
         })}
-        {extensions === null && <p className="dps-hint">正在读取内建插件状态…</p>}
-        <p className="dps-hint">开关写入本机 <code>storages/plugin-store/plugins.json</code>，<strong>重启 dsh 后生效</strong>。关掉被依赖的插件时，下游会自动进入「依赖阻塞」。</p>
+        {extensions === null && <p className="dps-hint">{t('settings.builtinLoading')}</p>}
+        <p className="dps-hint">{t('settings.switchesBefore')}<code>storages/plugin-store/plugins.json</code>{t('settings.switchesMiddle')}<strong>{t('settings.switchesStrong')}</strong>{t('settings.switchesAfter')}</p>
       </section>
 
       <section className="dps-section">
-        <h4 className="dps-section-title"><IconRefreshOutline16 size={15} /> 镜像同步（本地数据库缓存）</h4>
+        <h4 className="dps-section-title"><IconRefreshOutline16 size={15} /> {t('settings.mirror')}</h4>
         <p className="dps-hint">
-          定期将 GitHub 上标记 <code>topic:dsh-plugin</code> 或 <code>#dsh-plugin</code> 的仓库元数据缓存到本地数据库，搜索加载不再受网络与限频影响。
+          {t('settings.syncHintBefore')}<code>topic:dsh-plugin</code>{t('settings.syncHintOr')}<code>#dsh-plugin</code>{t('settings.syncHintAfter')}
         </p>
         <div className="dps-row">
-          <label className="dps-inline-label">间隔（小时，0=关闭）</label>
+          <label className="dps-inline-label">{t('settings.syncIntervalLabel')}</label>
           <input className="dps-input dps-input-num" type="number" min={0} max={168} value={hours} onChange={(e) => setHours(e.target.value)} />
-          <button type="button" className="dps-btn" disabled={busy === 'schedule'} onClick={() => void saveSchedule()}>保存计划</button>
+          <button type="button" className="dps-btn" disabled={busy === 'schedule'} onClick={() => void saveSchedule()}>{t('settings.savePlan')}</button>
           <button type="button" className="dps-btn dps-btn-primary" disabled={busy === 'sync' || status?.state === 'syncing'} onClick={() => void syncNow()}>
-            {status?.state === 'syncing' ? '同步中…' : '立即同步'}
+            {status?.state === 'syncing' ? t('settings.syncingEllipsis') : t('settings.syncNow')}
           </button>
         </div>
         {status && (
           <div className="dps-status">
             <div className="dps-status-line">
-              状态：<span className={`dps-state-chip${status.state === 'error' ? ' off' : ''}`}>{status.state === 'syncing' ? '同步中' : status.state === 'error' ? '出错' : '空闲'}</span>
-              {status.lastSyncAt && <> · 上次：{formatDate(status.lastSyncAt)}（{status.lastSyncTotal} 个仓库）</>}
-              {status.nextSyncAt && <> · 下次计划：{formatDate(status.nextSyncAt)}</>}
+              {t('settings.statusLabel')}<span className={`dps-state-chip${status.state === 'error' ? ' off' : ''}`}>{status.state === 'syncing' ? t('settings.stateSyncing') : status.state === 'error' ? t('settings.stateError') : t('settings.idle')}</span>
+              {status.lastSyncAt && <>{t('settings.lastSyncLabel')}{formatDate(status.lastSyncAt)}{t('settings.repoCountBefore')}{status.lastSyncTotal}{t('settings.repoCountAfter')}</>}
+              {status.nextSyncAt && <>{t('settings.nextSyncLabel')}{formatDate(status.nextSyncAt)}</>}
             </div>
             {status.lastError && <div className="dps-status-error"><IconWarningOutline16 size={14} /> {status.lastError}</div>}
           </div>
