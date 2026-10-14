@@ -10,6 +10,9 @@ interface SectionProps {
     api: RemoteApi;
     openStore: () => void;
     close?: () => void;
+    /** Bound to the `pluginStore` namespace by `apply()`, exactly as the
+     *  sidebar entry receives it. */
+    t: (k: string) => string;
 }
-export declare function StoreSettingsSection({ api, openStore }: SectionProps): ReactNode;
+export declare function StoreSettingsSection({ api, openStore, t }: SectionProps): ReactNode;
 export {};
