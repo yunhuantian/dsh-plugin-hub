@@ -27,6 +27,7 @@ const NS = 'pluginStore';
 
 const zh = {
   'entry.label': '插件商店',
+  'entry.summary': '搜索、安装和管理来自 GitHub 与 npm 的插件，含健康度、依赖影响与发布工具。',
   'settings.nav': '插件商店',
   'discover.search': '按名称或描述搜索插件…',
   'discover.empty': '没有找到匹配的插件',
@@ -396,6 +397,7 @@ const zh = {
 
 const en: Record<keyof typeof zh, string> = {
   'entry.label': 'Plugin Store',
+  'entry.summary': 'Search, install and manage plugins from GitHub and npm — with health scores, dependency impact and publishing tools.',
   'settings.nav': 'Plugin Store',
   // ---- update ----
   'action.update': 'Update',
@@ -765,14 +767,20 @@ const en: Record<keyof typeof zh, string> = {
 export const inject = ['slots', 'locale', 'remote'];
 
 /**
- * 商店面板：注册进官方「插件」页的一个 tab（`settings.plugins.tab`）。
+ * 商店面板：注册进官方「插件」页的一个条目（`plugins.item`）。
  *
- * 0.1.x 时商店是侧栏底部一个独立按钮 + 全屏弹层。0.2 起改为**挂在官方「插件」页
- * 里的一个页签**，内嵌渲染、不带自己的遮罩与关闭钮 —— 这样看起来就是这个页面
- * 本来就有的功能，而不是多装了一个插件。hub 自身的插件组成（bundle patch、
- * 内部扩展名册、client inject）没有变，只是 UI 落点换了。
+ * ⚠️ **官方会拿同一个组件渲染两次**，靠 `view` 区分 —— 这是踩过一次才看清的契约：
+ *
+ *   renderSlot("plugins.item", { view: "summary" }, { only: id })   // 列表里那张卡片
+ *   renderSlot("plugins.item", { view: "page", form }, { only: id }) // 点进去的详情页
+ *
+ * 之前这里无视 `view` 直接渲染整个商店，于是**卡片里被塞进了整个商店**：
+ * 列表里一排官方条目（终端 / Agent 循环 / 网页搜索…）各占一行，紧接着就是我们
+ * 整块商店展开，非常突兀。正确做法是 summary 只给一行摘要 ——
+ * 标题、图标、点击热区和「返回列表」都由官方那套渲染，我们一格自定义 chrome 都不用加。
  */
-function StorePluginsTab({ api, t }: { api: RemoteApi; t: (k: string) => string }): ReactNode {
+function StorePluginsTab({ view, api, t }: { view?: string; api: RemoteApi; t: (k: string) => string }): ReactNode {
+  if (view === 'summary') return <>{t('entry.summary')}</>;
   return <StoreApp api={api} t={t} />;
 }
 
