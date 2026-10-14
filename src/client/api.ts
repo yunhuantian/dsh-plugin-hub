@@ -446,14 +446,9 @@ function createStore<T>(initial: T) {
   };
 }
 
-/** Whether the store modal is open (shared between the sidebar button and the settings section). */
-export const openStoreStore = createStore(false);
-export const openStore = () => openStoreStore.set(true);
-export const closeStore = () => openStoreStore.set(false);
-
-/** Selected view inside the modal; detail navigation is local to the app. */
-export const viewStore = createStore<'discover' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'settings'>('discover');
-export const setView = (view: 'discover' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'settings') => viewStore.set(view);
+/** Selected view inside the store; detail navigation is local to the app. */
+export const viewStore = createStore<'discover' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'extensions' | 'settings'>('discover');
+export const setView = (view: 'discover' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'extensions' | 'settings') => viewStore.set(view);
 
 const ACTOR_KEY = 'dsh.pluginStore.actor';
 

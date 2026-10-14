@@ -531,21 +531,13 @@ export declare function unwrap<T>(result: {
 export declare function makeApi(remote: Record<string, any>): RemoteApi;
 export { TYPERT_REMOTE };
 type Listener = () => void;
-/** Whether the store modal is open (shared between the sidebar button and the settings section). */
-export declare const openStoreStore: {
-    getSnapshot: () => boolean;
-    subscribe: (listener: Listener) => () => void;
-    set: (next: boolean) => void;
-};
-export declare const openStore: () => void;
-export declare const closeStore: () => void;
-/** Selected view inside the modal; detail navigation is local to the app. */
+/** Selected view inside the store; detail navigation is local to the app. */
 export declare const viewStore: {
-    getSnapshot: () => "installed" | "health" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "discover" | "skill";
+    getSnapshot: () => "installed" | "health" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "extensions" | "discover" | "skill";
     subscribe: (listener: Listener) => () => void;
-    set: (next: "installed" | "health" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "discover" | "skill") => void;
+    set: (next: "installed" | "health" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "extensions" | "discover" | "skill") => void;
 };
-export declare const setView: (view: "discover" | "wiki" | "skill" | "installed" | "publish" | "health" | "scaffold" | "audit" | "settings") => void;
+export declare const setView: (view: "discover" | "wiki" | "skill" | "installed" | "publish" | "health" | "scaffold" | "audit" | "extensions" | "settings") => void;
 /** Operator display name used for audit attribution (persisted locally). */
 export declare function getActor(): string;
 export declare function setActor(name: string): void;

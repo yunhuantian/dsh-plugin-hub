@@ -7,23 +7,28 @@
 > dependencies. It also ships an **offline seed catalog**: 16 useful plugins are browsable
 > and installable the moment you install the hub, without waiting for the first sync.
 
-Built for **DSH `0.1.5-rc.1`** (cordis 4.0.2) · MIT
+Built for **DSH `0.1.x` and `0.2.x`** · MIT
 
 ---
 
-## Preview
+## How you reach it
 
-**Store front**: 12 categories, card list, trust badges, download-source labels, one-click install
-![Store front](./docs/screenshots/01-discover.jpg)
+It adds **no entry point of its own**. Instead the store shows up as an item on DSH's own
+**Plugins** page — the page whose intro already reads *"install, enable and configure
+plugins"*:
 
-**Health leaderboard**: top-20 health index, refreshed with the mirror sync
-![Health leaderboard](./docs/screenshots/02-health-leaderboard.jpg)
+```
+sidebar → Plugins → Plugin Store
+```
 
-**Detail page**: score breakdown, release timeline, npm daily download trend
-![Detail health & trend](./docs/screenshots/03-detail-health-trend.jpg)
+Inside is the store itself: **Discover / Wiki / Skills / Installed / Built-ins / Health /
+Publish / Scaffold / Audit / Settings**. So the hub's own configuration (GitHub token,
+mirror-sync schedule) and the switches for its 21 internal plugins all live in one place
+rather than being scattered across settings pages.
 
-**GitHub discussions**: read-only issue list for the plugin's repository
-![GitHub discussions](./docs/screenshots/04-github-discussions.jpg)
+> On 0.1.x the landing point differs: a standalone button at the bottom of the sidebar
+> plus a full-screen overlay, and a separate settings page. As of 0.2 it renders inside the
+> official Plugins page, so it reads as something that page always had.
 
 ---
 
@@ -174,8 +179,9 @@ npm run build
 dsh plugin --profile web add <this-directory>
 ```
 
-After install: a "Plugin Store" button appears at the bottom of the sidebar, and a "Plugin Store"
-section appears in Settings (GitHub token, mirror schedule, built-in extension switches).
+After install: a **Plugin Store** item appears on the sidebar **Plugins** page; opening it
+is the store itself. The GitHub token, mirror schedule and built-in extension switches live
+inside it (Settings / Built-ins). Run "Sync now" in Settings once before first use.
 
 ---
 
@@ -226,6 +232,44 @@ npm run check:contract # contract round-trip: host payload ⨯ zod contract (cat
 
 ## Changelog
 
+### 0.2.3 (2026-10-14)
+
+**The store now lives inside the official Plugins page — no entry point of its own**
+
+On 0.1.x the store was a standalone button at the bottom of the sidebar plus a full-screen
+overlay, with a separate settings page. As of 0.2 it registers into the **official Plugins
+page** (`plugins.item`, side by side with the official plugin entries); opening it is the
+store itself, so nothing suggests an extra plugin was installed. Also:
+
+- the sidebar button and the overlay are gone, along with their CSS and dictionary keys;
+- the hub's own settings page (`settings.section`) is gone: the token and mirror schedule
+  already live in the store's own Settings view, and only the **built-in extension switches**
+  were unique to it — they became the store's "Built-ins" view;
+- **the hub's own plugin composition is unchanged**: bundle patch, the 21-entry internal
+  roster and the client inject are all as before.
+
+**Cross-version icons (the bug that made the sidebar button vanish on 0.2.x)**
+
+0.1.x puts the size in the icon name (`IconCloseOutline16`); 0.2.x drops the size suffix and
+adds Regular/Medium variants (`IconCloseOutlineRegular`, with size as a prop). Importing one
+version's name yields `undefined` on the other, and React throws error #130
+("Element type is invalid") — inside a slot, so the **whole slot crashes** and nothing renders.
+
+- New `icons.tsx` resolves "0.2.x name → 0.1.x name" and falls back to a built-in SVG, so a
+  real component is always rendered. All 10 icons go through this one file, so the next
+  version bump touches a single place.
+
+**Cleanup**
+
+- removed `src/client/_archived-insights-0.1.x/` (dead 0.1.x code);
+- removed 38 unused CSS rules (the whole `dps-job-*` family, `dps-ins-*`, health-rank
+  leftovers, and the `dps-overlay` / `dps-mask` / `dps-entry*` that went with the overlay);
+- removed 19 unreferenced dictionary keys (zh/en kept symmetric);
+- removed the now-unused `openStore` / `openStoreStore` / `closeStore` exports.
+
+Measured on a real dsh `0.2.0-rc.2`: `tsc` passes both halves, `check:contract` fully
+passes, zero `did not activate` on boot, zero browser console errors, and the store appears
+and works as an item on the Plugins page.
 ### 0.2.2 (2026-10-14)
 
 **Fix the typert contract on dsh 0.2.x (the part 0.2.1 missed)**

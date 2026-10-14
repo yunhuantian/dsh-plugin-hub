@@ -8,6 +8,5 @@
     "outDir": "lib/types",
     "rootDir": "src"
   },
-  "include": ["src/contracts/**/*.ts", "src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.d.ts"],
-  "exclude": ["src/client/_archived-*"]
+  "include": ["src/contracts/**/*.ts", "src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.d.ts"]
 }

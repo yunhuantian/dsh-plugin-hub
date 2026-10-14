@@ -1,27 +1,29 @@
 # dsh-plugin-hub — DSH 插件商店
 
-> DeepSeek Harness（DSH）Web 界面里的图形化插件商店：发现、搜索、一键安装 GitHub 上的
+> DeepSeek Harness（DSH）里的图形化插件商店：发现、搜索、一键安装 GitHub 上的
 > `dsh-plugin`，并自带 **21 个随包发布的内部插件**（基础内核 / 安全与质量 / 发布流水线 /
 > 洞察与内容 / 运维）。一个包、一次安装，全部到手；每个内部插件都能单独开关、声明依赖。
 > 另附**离线预置目录**：装好即有 16 个实用插件可浏览、可安装，不必等镜像同步跑完。
 
-适配 **DSH `0.1.5-rc.1`**（cordis 4.0.2）· MIT
+支持 **DSH `0.1.x` 与 `0.2.x`** 两条版本线 · MIT
 
 ---
 
-## 预览
+## 怎么用
 
-**商店主界面**：12 类分类筛选、卡片式列表、信任徽章、下载来源标注、一键安装
-![商店主界面](./docs/screenshots/01-discover.jpg)
+装好后**不新增任何自己的入口**，而是作为一项出现在 DSH 自带的「插件」页里
+（那个页面本来就是「安装、启用和配置插件」的地方，intro 里写着这句话）：
 
-**健康度排行榜**：Top 20 健康指数随镜像同步更新，前三名金/银/铜
-![健康度排行榜](./docs/screenshots/02-health-leaderboard.jpg)
+```
+侧栏「插件」 → 插件商店
+```
 
-**详情页健康度 + 动态趋势图**：评分构成条 + 版本发布线 + npm 每日真实下载量折线
-![详情页健康度与趋势图](./docs/screenshots/03-detail-health-trend.jpg)
+进去是商店本体：**发现插件 / 百科 / Skill 商店 / 已安装 / 内置扩展 / 健康度 / 发布 /
+开发脚手架 / 审计日志 / 设置**。也就是说 hub 的配置（GitHub Token、镜像同步计划）和
+21 个内部插件的开关都在同一个界面里，不再散落到各个设置页。
 
-**GitHub 讨论区**：只读展示该插件仓库的 issue 讨论，一键跳转参与
-![GitHub 讨论区](./docs/screenshots/04-github-discussions.jpg)
+> 0.1.x 上落点不同：那时是侧栏底部一个独立按钮 + 全屏弹层，外加一个独立的设置页。
+> 0.2 起改为嵌进官方「插件」页，看起来就是这个页面本就有的功能。
 
 ---
 
@@ -121,7 +123,7 @@
 ### 两级开关
 
 1. **安装级**：hub 的 `cordis.patch.yml` 每行可写 `disabled: true`（部署策略）；
-2. **日常级**：设置页 →「插件商店」→「内建插件」，按分组管理，写本机
+2. **日常级**：侧栏「插件」→ 插件商店 →「内置扩展」，按分组管理，写本机
    `storages/plugin-store/plugins.json`，**重启 dsh 后生效**。
 
 > ⚠️ 默认关闭的四个插件（changelog / baike / skill-store / diagnostics）在 patch 里
@@ -217,8 +219,9 @@ npm run build          # tsc 编译 host + esbuild 打包 client
 dsh plugin --profile web add <本包目录>
 ```
 
-装好后：侧边栏底部出现「插件商店」；设置页多出「插件商店」一节
-（GitHub Token、镜像同步计划、内置扩展开关）。首次使用建议先在设置页点「立即同步」。
+装好后：侧栏「插件」页里多出 **插件商店** 一项，点进去就是商店本体；
+GitHub Token、镜像同步、内置扩展开关都在它的「设置」/「内置扩展」里。
+首次使用建议先在「设置」里点「立即同步」。
 
 ---
 
@@ -313,9 +316,10 @@ src/
     usage.ts  health.ts  update-check.ts  dependency-graph.ts  baike.ts  skill-store.ts
     backup.ts  diagnostics.ts
   client/
-    index.tsx             # 核心 UI 注册（入口按钮 / 设置页 / 插件开关 / 内建插件 UI 挂载）
+    index.tsx             # 核心 UI 注册（官方「插件」页条目 / 字典 / 内建插件 UI 挂载）
+    icons.tsx             # 跨版本图标适配层（0.1.x 与 0.2.x 的图标导出名不同）
     views.tsx             # 发现 / 详情 / 已安装 / 发布 / 审计 / 健康度 / 百科 / 技能 / 脚手架
-    settings-section.tsx  # 原生设置页（Token / 同步 / 按分组的内建插件管理）
+    extensions-view.tsx   # 内置扩展开关（商店内「内置扩展」视图）
     extensions/usage/     # 用量 tab 的 client 半边（图表 + 价格表对照）
     store.css             # 样式（--dsw-* 主题变量）
 ```
@@ -324,6 +328,39 @@ src/
 
 ## 更新日志
 
+### 0.2.3（2026-10-14）
+
+**商店融进官方「插件」页，不再有自己的一套入口**
+
+0.1.x 时商店是侧栏底部一个独立按钮 + 全屏弹层，外加一个独立的设置页。0.2 起改为注册进
+**官方「插件」页**（`plugins.item`，与官方自带的插件条目并列），点开即进入商店本体 ——
+界面上看不出这是额外装的一个插件。同时：
+
+- 去掉侧栏按钮与全屏弹层（连同它的 CSS 与文案键）；
+- 去掉 hub 自己的设置页（`settings.section`）：Token 与镜像同步在商店的「设置」里本来
+  就有，只有**内置扩展开关**是独有的，拆成商店内的「内置扩展」视图；
+- **hub 自身的插件组成没有变**：bundle patch、21 个内部扩展名册、client inject 都原样。
+
+**跨版本图标适配（0.2.x 上侧栏按钮整块消失的那个 bug）**
+
+0.1.x 把尺寸写进图标名（`IconCloseOutline16`），0.2.x 改成不带尺寸后缀 + Regular/Medium
+变体（`IconCloseOutlineRegular`，尺寸走 `size` prop）。按某个版本的名字直接 import，
+在另一个版本上拿到的是 `undefined`，渲染时 React 抛 error #130
+（"Element type is invalid"）—— 它发生在 slot 里，**整条 slot 会崩掉**，界面上什么都不出现。
+
+- 新增 `icons.tsx`：按「0.2.x 名 → 0.1.x 名」依次取，都取不到用内置 SVG 兜底，
+  保证任何版本上都渲染出真组件；10 个图标集中在一处，以后换版本只改一个文件。
+
+**清理**
+
+- 删除 `src/client/_archived-insights-0.1.x/`（0.1.x 遗留的死代码）；
+- 删除 38 条无人使用的 CSS 规则（整组 `dps-job-*`、`dps-ins-*`、健康度排名残留，以及
+  随弹层一起消失的 `dps-overlay` / `dps-mask` / `dps-entry*`）；
+- 删除 19 个无人引用的 i18n 键（zh/en 同步删）；
+- 删除 `openStore` / `openStoreStore` / `closeStore` 三个已无用的导出。
+
+实测（真实 dsh `0.2.0-rc.2`）：`tsc` 双通过、`check:contract` 全部通过、启动 0 条
+`did not activate`、浏览器 0 条 console 错误，「插件」页里能看到「插件商店」条目并使用。
 ### 0.2.2（2026-10-14）
 
 **修 dsh 0.2.x 上 typert 契约不兼容（0.2.1 的补漏）**

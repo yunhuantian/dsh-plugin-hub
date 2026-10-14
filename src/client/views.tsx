@@ -1,12 +1,13 @@
+import { IconCode, IconCordisPlugin, IconDownload, IconRefresh, IconSearch, IconSettings, IconTrash, IconUser, IconWarning } from './icons';
 /**
  * Store views: Discover (cards + search + filters), Detail (tabs incl.
  * dependency graph, version history, reviews), Installed, Settings (token +
  * mirror), Audit log, and the developer Scaffold page.
  */
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from 'react';
-import { IconCordisPluginOutline14, IconCodeOutline16, IconDownloadOutline16, IconRefreshOutline16, IconSearchOutline16, IconSettingsOutline16, IconTrashOutline16, IconUserOutline16, IconWarningOutline16 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Category, InstalledPlugin, PluginDetail, PluginSummary, RemoteApi } from './api';
 import { formatCount, formatDate, getActor, setActor, actorDisplay } from './api';
+import { ExtensionsView } from './extensions-view';
 import { Markdown } from './markdown';
 import { DependencyGraph } from './graph';
 
@@ -96,7 +97,7 @@ function ErrorBanner({ error, onDismiss, t }: { error: string | { message: strin
   const tf = t ?? ((k: string) => k);
   return (
     <div className="dps-error" role="alert">
-      <IconWarningOutline16 size={16} />
+      <IconWarning size={16} />
       <span className="dps-error-text">
         {message}
         {detail && (
@@ -195,7 +196,7 @@ function Discover({ api, onOpen, onChanged, t }: DiscoverProps): ReactNode {
         <div className="dps-card-stats">
           <SourceBadge source={p.source} t={t} />
           <Stars rating={p.rating} count={p.ratingCount} />
-          <span className="dps-stat" title={t('downloads.title')}><IconDownloadOutline16 size={13} />{p.downloads > 0 ? formatCount(p.downloads) : t('downloads.unknown')}</span>
+          <span className="dps-stat" title={t('downloads.title')}><IconDownload size={13} />{p.downloads > 0 ? formatCount(p.downloads) : t('downloads.unknown')}</span>
           <span className="dps-stat" title="GitHub Stars">★ {formatCount(p.stars)}</span>
         </div>
       </div>
@@ -221,7 +222,7 @@ function Discover({ api, onOpen, onChanged, t }: DiscoverProps): ReactNode {
     <div className="dps-view">
       <div className="dps-toolbar">
         <div className="dps-search">
-          <IconSearchOutline16 size={15} />
+          <IconSearch size={15} />
           <input
             className="dps-search-input"
             value={query}
@@ -265,7 +266,7 @@ function Discover({ api, onOpen, onChanged, t }: DiscoverProps): ReactNode {
         <div className="dps-empty">加载中…</div>
       ) : plugins.length === 0 ? (
         <div className="dps-empty">
-          <IconCordisPluginOutline14 size={18} />
+          <IconCordisPlugin size={18} />
           <p>{t('discover.empty')}</p>
           {total === 0 && <p className="dps-empty-hint">{t('discover.emptyHint')}</p>}
         </div>
@@ -510,7 +511,7 @@ export function Detail({ api, packageName, onBack, onChanged, t }: DetailProps):
             <span className="dps-dot">·</span>
             <Stars rating={detail.rating} count={detail.ratingCount} />
             <span className="dps-dot">·</span>
-            <span title={t('downloads.title')}><IconDownloadOutline16 size={13} />{detail.downloads > 0 ? formatCount(detail.downloads) : t('downloads.unknown')}</span>
+            <span title={t('downloads.title')}><IconDownload size={13} />{detail.downloads > 0 ? formatCount(detail.downloads) : t('downloads.unknown')}</span>
             {detail.license && <><span className="dps-dot">·</span><span>{detail.license}</span></>}
           </div>
         </div>
@@ -681,7 +682,7 @@ export function Detail({ api, packageName, onBack, onChanged, t }: DetailProps):
               {detail.reviews.map((r) => (
                 <li key={r.id} className="dps-review">
                   <div className="dps-review-head">
-                    <IconUserOutline16 size={15} />
+                    <IconUser size={15} />
                     <span className="dps-review-actor">{r.actor}</span>
                     <span className="dps-stars-icons" aria-hidden="true">{Array.from({ length: 5 }, (_, i) => <span key={i} className={`dps-star${i < r.score ? ' on' : ''}`}>★</span>)}</span>
                     <span className="dps-review-time">{formatDate(r.createdAt)}</span>
@@ -1079,7 +1080,7 @@ function Installed({ api, onOpen, t }: { api: RemoteApi; onOpen: (name: string) 
                   {switchCtl(p)}
                   {!p.protected && p.uninstallable !== false && (
                     <button type="button" className="dps-icon-btn" title={p.packageName === 'dsh-plugin-hub' ? '卸载插件商店' : t('action.uninstall')} disabled={busy === p.packageName} onClick={() => void remove(p)}>
-                      <IconTrashOutline16 size={14} />
+                      <IconTrash size={14} />
                     </button>
                   )}
                 </div>
@@ -1139,7 +1140,7 @@ function Installed({ api, onOpen, t }: { api: RemoteApi; onOpen: (name: string) 
     <div className="dps-view">
       <div className="dps-view-head">
         <h3 className="dps-view-title">{t('installed.title')}</h3>
-        <button type="button" className="dps-icon-btn" onClick={() => void load()} aria-label={t('app.close')}><IconRefreshOutline16 size={15} /></button>
+        <button type="button" className="dps-icon-btn" onClick={() => void load()} aria-label={t('app.close')}><IconRefresh size={15} /></button>
       </div>
       <ErrorBanner error={error} onDismiss={() => setError(null)} t={t} />
       {list === null ? (
@@ -1240,7 +1241,7 @@ function Settings({ api, t }: { api: RemoteApi; t: (k: string) => string }): Rea
       {notice && <div className="dps-notice">{notice}</div>}
 
       <section className="dps-section">
-        <h4 className="dps-section-title"><IconUserOutline16 size={15} /> {t('settings.operator')}</h4>
+        <h4 className="dps-section-title"><IconUser size={15} /> {t('settings.operator')}</h4>
         <div className="dps-row">
           <input className="dps-input" value={actor} placeholder={t('settings.anonymous')} maxLength={64} onChange={(e) => setActorName(e.target.value)} />
           <button type="button" className="dps-btn" onClick={saveActor}>{t('settings.saveActor')}</button>
@@ -1249,7 +1250,7 @@ function Settings({ api, t }: { api: RemoteApi; t: (k: string) => string }): Rea
       </section>
 
       <section className="dps-section">
-        <h4 className="dps-section-title"><IconSettingsOutline16 size={15} /> {t('settings.githubToken')}</h4>
+        <h4 className="dps-section-title"><IconSettings size={15} /> {t('settings.githubToken')}</h4>
         <p className="dps-hint" dangerouslySetInnerHTML={{ __html: t('settings.githubTokenHint') }} />
         <div className="dps-row">
           <input className="dps-input" type="password" value={token} placeholder={settings?.tokenConfigured ? `已配置：${settings.tokenMasked}` : t('settings.tokenPlaceholder') + '（ghp_…）'} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
@@ -1267,7 +1268,7 @@ function Settings({ api, t }: { api: RemoteApi; t: (k: string) => string }): Rea
       </section>
 
       <section className="dps-section">
-        <h4 className="dps-section-title"><IconRefreshOutline16 size={15} /> {t('settings.mirror')}</h4>
+        <h4 className="dps-section-title"><IconRefresh size={15} /> {t('settings.mirror')}</h4>
         <p className="dps-hint" dangerouslySetInnerHTML={{ __html: t('settings.mirrorHint') }} />
         <div className="dps-row">
           <label className="dps-inline-label">{t('settings.syncInterval')}</label>
@@ -1286,7 +1287,7 @@ function Settings({ api, t }: { api: RemoteApi; t: (k: string) => string }): Rea
               {status.lastSyncAt && <> · {t('settings.lastSync')}：{formatDate(status.lastSyncAt)}（{status.lastSyncTotal} {t('settings.plugins')}）</>}
               {status.nextSyncAt && <> · {t('settings.nextPlan')}：{formatDate(status.nextSyncAt)}</>}
             </div>
-            {status.lastError && <div className="dps-status-error"><IconWarningOutline16 size={14} /> {status.lastError}</div>}
+            {status.lastError && <div className="dps-status-error"><IconWarning size={14} /> {status.lastError}</div>}
           </div>
         )}
       </section>
@@ -1318,7 +1319,7 @@ function Audit({ api, t }: { api: RemoteApi; t: (k: string) => string }): ReactN
     <div className="dps-view">
       <div className="dps-view-head">
         <h3 className="dps-view-title">{t('audit.title')}</h3>
-        <button type="button" className="dps-icon-btn" onClick={() => setReload((n) => n + 1)} aria-label={t('app.close')}><IconRefreshOutline16 size={15} /></button>
+        <button type="button" className="dps-icon-btn" onClick={() => setReload((n) => n + 1)} aria-label={t('app.close')}><IconRefresh size={15} /></button>
       </div>
       <div className="dps-toolbar dps-toolbar-inline">
         <select className="dps-select" value={action} onChange={(e) => { setAction(e.target.value); setOffset(0); }} aria-label={t('audit.byActor')}>
@@ -1496,7 +1497,7 @@ function PublishView({ api, t }: { api: RemoteApi; t: (k: string) => string }): 
   return (
     <div className="dps-view dps-publish">
       <div className="dps-scaffold-hero">
-        <div className="dps-scaffold-hero-icon"><IconCodeOutline16 size={26} /></div>
+        <div className="dps-scaffold-hero-icon"><IconCode size={26} /></div>
         <div>
           <h3 className="dps-scaffold-title">{t('publish.title')}</h3>
           <p className="dps-scaffold-desc">{t('publish.desc')}</p>
@@ -1957,7 +1958,7 @@ function HealthHub({ api, t }: { api: RemoteApi; t: (k: string) => string }): Re
   return (
     <div className="dps-view">
       <div className="dps-scaffold-hero">
-        <div className="dps-scaffold-hero-icon"><IconWarningOutline16 size={26} /></div>
+        <div className="dps-scaffold-hero-icon"><IconWarning size={26} /></div>
         <div>
           <h3 className="dps-scaffold-title">{t('health.title')}</h3>
           <p className="dps-scaffold-desc">
@@ -2007,7 +2008,7 @@ function WikiExplorer({ api, onOpen, t }: { api: RemoteApi; onOpen: (name: strin
   return (
     <div className="dps-view">
       <div className="dps-scaffold-hero">
-        <div className="dps-scaffold-hero-icon"><IconWarningOutline16 size={26} /></div>
+        <div className="dps-scaffold-hero-icon"><IconWarning size={26} /></div>
         <div>
           <h3 className="dps-scaffold-title">{t('wiki.title')}</h3>
           <p className="dps-scaffold-desc">{t('wiki.desc')}</p>
@@ -2147,7 +2148,7 @@ function SkillStore({ api, t }: { api: RemoteApi; t: (k: string) => string }): R
   return (
     <div className="dps-view">
       <div className="dps-scaffold-hero">
-        <div className="dps-scaffold-hero-icon"><IconCordisPluginOutline14 size={26} /></div>
+        <div className="dps-scaffold-hero-icon"><IconCordisPlugin size={26} /></div>
         <div>
           <h3 className="dps-scaffold-title">{t('skill.title')}</h3>
           <p className="dps-scaffold-desc">{t('skill.desc')}</p>
@@ -2269,7 +2270,7 @@ function Scaffold({ api, t }: { api: RemoteApi; t: (k: string) => string }): Rea
   return (
     <div className="dps-view">
       <div className="dps-scaffold-hero">
-        <div className="dps-scaffold-hero-icon"><IconCodeOutline16 size={26} /></div>
+        <div className="dps-scaffold-hero-icon"><IconCode size={26} /></div>
         <div>
           <h3 className="dps-scaffold-title">{t('scaffold.title')}</h3>
           <p className="dps-scaffold-desc">{t('scaffold.desc')}</p>
@@ -2335,7 +2336,7 @@ function Scaffold({ api, t }: { api: RemoteApi; t: (k: string) => string }): Rea
 
 // ---- view switcher (used by StoreApp) ----------------------------------------
 
-export type StoreView = 'discover' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'settings';
+export type StoreView = 'discover' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'extensions' | 'settings';
 
 export function StoreViewBody({ view, api, onOpen, onChanged, t }: { view: StoreView; api: RemoteApi; onOpen: (name: string) => void; onChanged: () => void; t: (key: string) => string }): ReactNode {
   switch (view) {
@@ -2347,6 +2348,7 @@ export function StoreViewBody({ view, api, onOpen, onChanged, t }: { view: Store
     case 'health': return <HealthHub api={api} t={t} />;
     case 'scaffold': return <Scaffold api={api} t={t} />;
     case 'audit': return <Audit api={api} t={t} />;
+    case 'extensions': return <ExtensionsView api={api} t={t} />;
     case 'settings': return <Settings api={api} t={t} />;
     default: return null;
   }

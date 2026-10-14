@@ -1,19 +1,16 @@
+import { IconCordisPlugin } from './icons';
 /**
- * dsh-plugin-hub client entry: mounts the Typert Remote, registers
- * dictionaries, and installs the two native integration points —
- *   1. `sidebar.footer.action`  — the store entry button beside Settings
- *      (same geometry as the settings trigger row: 34px wide row / 36px rail);
- *   2. `settings.section`       — a native Settings page (GitHub token, mirror
- *      schedule, sync control) and a shortcut to open the store.
- * The store modal is a portal overlay mounted from the (always-mounted)
- * sidebar entry button, so it floats above the whole Harness UI.
+ * dsh-plugin-hub client entry: mounts the Typert Remote, registers dictionaries,
+ * and installs the one native integration point it has:
+ *
+ *   `plugins.item` — an entry on the official 插件 page (the one whose intro
+ *   reads 安装、启用和配置插件), i.e. the page a plugin store belongs on. It
+ *   renders as part of that page rather than as an extra plugin. hub 自己的插件组成
+ *   （bundle patch / 内部扩展名册 / client inject）不因为这个落点变化而改变。
  */
-import { createPortal } from 'react-dom';
-import { useSyncExternalStore, type ReactNode } from 'react';
-import { IconCordisPluginOutline14, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
-import { TYPERT_REMOTE, makeApi, openStore, openStoreStore, type RemoteApi } from './api';
+import type { ReactNode } from 'react';
+import { TYPERT_REMOTE, makeApi, type RemoteApi } from './api';
 import { StoreApp } from './StoreApp';
-import { StoreSettingsSection } from './settings-section';
 import { mountUsageView, usageDictionaries, USAGE_NS } from './extensions/usage/index';
 import storeCss from './store.css';
 
@@ -30,7 +27,6 @@ const NS = 'pluginStore';
 
 const zh = {
   'entry.label': '插件商店',
-  'entry.tooltip': '打开插件商店：浏览、搜索、一键安装 DSH 插件',
   'settings.nav': '插件商店',
   'discover.search': '按名称或描述搜索插件…',
   'discover.empty': '没有找到匹配的插件',
@@ -41,6 +37,7 @@ const zh = {
   'nav.wiki': '百科',
   'nav.skill': 'Skill 商店',
   'nav.installed': '已安装',
+  'nav.extensions': '内置扩展',
   'nav.health': '健康度',
   'nav.publish': '发布',
   // ---- trust ----
@@ -61,10 +58,6 @@ const zh = {
   'health.title': '健康度排行榜',
   'health.desc': '按健康指数排序的 Top 20，每日自动更新。点击任意插件查看评分构成与动态图表。',
   'health.updatedAt': '更新于',
-  'health.healthy': '健康',
-  'health.attention': '需关注',
-  'health.stale': '已停滞',
-  'health.avg': '平均分',
   'health.loading': '计算健康度中…',
   'health.empty': '暂无插件数据，请先在设置中同步镜像。',
   'health.lastUpdate': '最后更新',
@@ -218,7 +211,6 @@ const zh = {
   'publish.errNoPlugin': '请先选择一个要发布的插件',
   'publish.published': '已发布',
   'publish.secWarningTitle': '⚠️ 发布成功，但安全扫描发现以下可疑项（请自行确认无风险后再公开推广）：',
-  'app.title': '插件商店',
   'app.detail': '插件详情',
   'app.close': '关闭',
   'action.install': '安装',
@@ -232,10 +224,8 @@ const zh = {
   'err.dismiss': '知道了',
   'action.uninstalling': '卸载中…',
   'action.processing': '处理中…',
-  'action.retry': '重试',
   'state.installed': '已安装',
   'state.disabled': '已禁用',
-  'state.installing': '安装中',
   'category.tool': '工具',
   'category.agent': 'Agent',
   'category.ui': '界面美化',
@@ -257,17 +247,6 @@ const zh = {
   'btn.githubInstall': 'GitHub 安装',
   'err.detail.toggle': '查看详情',
   'err.detail.collapse': '收起详情',
-  'empty.usage': '还没有用量数据',
-  'empty.usageHint': '发送第一条消息后，这里会展示每个请求的 token 与缓存命中率。',
-  'usage.input': '输入',
-  'usage.output': '输出',
-  'usage.hitRate': '缓存命中率',
-  'usage.totalInput': '总输入',
-  'usage.totalOutput': '总输出',
-  'usage.estimatedCost': '估算费用',
-  'usage.modelMix': '模型分布',
-  'usage.chartHint': '滚轮缩放 · 拖动平移 · 双击复位',
-  'usage.tab': '用量',
   'sort.random': '随机推荐（防刷榜）',
   'sort.health': '按健康度',
   'sort.stars': '按 Star 数',
@@ -417,7 +396,6 @@ const zh = {
 
 const en: Record<keyof typeof zh, string> = {
   'entry.label': 'Plugin Store',
-  'entry.tooltip': 'Open the plugin store: browse, search and one-click install DSH plugins',
   'settings.nav': 'Plugin Store',
   // ---- update ----
   'action.update': 'Update',
@@ -431,10 +409,6 @@ const en: Record<keyof typeof zh, string> = {
   'health.title': 'Health Leaderboard',
   'health.desc': 'Top 20 by health score, refreshed daily. Click any plugin for the breakdown and activity charts.',
   'health.updatedAt': 'Updated',
-  'health.healthy': 'Healthy',
-  'health.attention': 'Attention',
-  'health.stale': 'Stale',
-  'health.avg': 'Average',
   'health.loading': 'Scoring plugins…',
   'health.empty': 'No plugin data yet — sync the mirror in Settings first.',
   'health.lastUpdate': 'Last update',
@@ -561,6 +535,7 @@ const en: Record<keyof typeof zh, string> = {
   'nav.wiki': 'Wiki',
   'nav.skill': 'Skills',
   'nav.installed': 'Installed',
+  'nav.extensions': 'Built-ins',
   'nav.health': 'Health',
   'nav.publish': 'Publish',
   // ---- trust ----
@@ -604,7 +579,6 @@ const en: Record<keyof typeof zh, string> = {
   'publish.errNoPlugin': 'Pick a plugin to publish first',
   'publish.published': 'published',
   'publish.secWarningTitle': '⚠️ Published, but the security scan flagged the following (verify they are safe before promoting):',
-  'app.title': 'Plugin Store',
   'app.detail': 'Plugin Detail',
   'app.close': 'Close',
   'action.install': 'Install',
@@ -618,10 +592,8 @@ const en: Record<keyof typeof zh, string> = {
   'err.dismiss': 'Got it',
   'action.uninstalling': 'Uninstalling…',
   'action.processing': 'Processing…',
-  'action.retry': 'Retry',
   'state.installed': 'Installed',
   'state.disabled': 'Disabled',
-  'state.installing': 'Installing',
   'category.tool': 'Tools',
   'category.agent': 'Agent',
   'category.ui': 'UI & Themes',
@@ -643,17 +615,6 @@ const en: Record<keyof typeof zh, string> = {
   'btn.githubInstall': 'Install via GitHub',
   'err.detail.toggle': 'Details',
   'err.detail.collapse': 'Collapse',
-  'empty.usage': 'No usage data yet',
-  'empty.usageHint': 'Send a message to see per-request tokens and cache hit rate here.',
-  'usage.input': 'Input',
-  'usage.output': 'Output',
-  'usage.hitRate': 'Cache hit rate',
-  'usage.totalInput': 'Total input',
-  'usage.totalOutput': 'Total output',
-  'usage.estimatedCost': 'Est. cost',
-  'usage.modelMix': 'Model mix',
-  'usage.chartHint': 'Wheel to zoom · drag to pan · double-click to reset',
-  'usage.tab': 'Usage',
   'sort.random': 'Random (anti-gaming)',
   'sort.health': 'Health',
   'sort.stars': 'Stars',
@@ -802,31 +763,17 @@ const en: Record<keyof typeof zh, string> = {
 };
 
 export const inject = ['slots', 'locale', 'remote'];
-function useOpenStore(): boolean {
-  return useSyncExternalStore(openStoreStore.subscribe, openStoreStore.getSnapshot, openStoreStore.getSnapshot);
-}
 
-/** The sidebar footer entry button: same size as the regular function buttons.
- * Also hosts the store modal portal so it can be opened from anywhere. */
-function StoreEntryButton({ wide, api, t }: { wide: boolean; api: RemoteApi; t: (k: string) => string }): ReactNode {
-  const open = useOpenStore();
-  const button = (
-    <button
-      type="button"
-      className={`dps-entry${wide ? '' : ' dps-entry-rail'}`}
-      aria-label={t('entry.label')}
-      onClick={openStore}
-    >
-      <IconCordisPluginOutline14 size={wide ? 14 : 18} />
-      {wide && <span className="dps-entry-label">{t('entry.label')}</span>}
-    </button>
-  );
-  return (
-    <>
-      {wide ? button : <Tooltip label={t('entry.label')} delayMs={500}>{button}</Tooltip>}
-      {open && createPortal(<StoreApp api={api} t={t} />, document.body)}
-    </>
-  );
+/**
+ * 商店面板：注册进官方「插件」页的一个 tab（`settings.plugins.tab`）。
+ *
+ * 0.1.x 时商店是侧栏底部一个独立按钮 + 全屏弹层。0.2 起改为**挂在官方「插件」页
+ * 里的一个页签**，内嵌渲染、不带自己的遮罩与关闭钮 —— 这样看起来就是这个页面
+ * 本来就有的功能，而不是多装了一个插件。hub 自身的插件组成（bundle patch、
+ * 内部扩展名册、client inject）没有变，只是 UI 落点换了。
+ */
+function StorePluginsTab({ api, t }: { api: RemoteApi; t: (k: string) => string }): ReactNode {
+  return <StoreApp api={api} t={t} />;
 }
 
 /**
@@ -846,27 +793,23 @@ export async function apply(ctx: any): Promise<() => Promise<void>> {
     const api: RemoteApi = makeApi(scope.remote);
     const t = ctx.locale.bind(NS);
 
-    // 1. Main-interface entry button (sidebar foot, beside Settings).
-    scope.slots.inject('sidebar.footer.action', () => scope.slots.register({
-      name: 'sidebar.footer.action',
+    // 唯一对外的界面接入点：官方「插件」页（侧栏「插件」，intro 写着"安装、启用和
+    // 配置插件"）里的一个条目。
+    //
+    // 该页由 dsh-client-ui-plugin-manager 拥有（注册 `main` 槽、key = "plugins"），
+    // 并声明了子槽 `plugins.item`（list）。官方自己的插件配置卡就是这么挂的
+    // （如 dsh-client-ui-settings-shell），点条目会进入一个独立视图
+    // （页面内部 `view.kind === 'item'`）—— 正好适合商店这种大界面。
+    scope.slots.inject('plugins.item', () => scope.slots.register({
+      name: 'plugins.item',
       id: 'plugin-store',
-      order: 10,
+      order: 90,
       label: () => t('entry.label'),
       locale: NS,
       inject: () => ({ api, t }),
-    }, StoreEntryButton));
+    }, StorePluginsTab));
 
-    // 2. Native settings section (token + mirror + open store + extension switches).
-    scope.slots.inject('settings.section', () => scope.slots.register({
-      name: 'settings.section',
-      id: 'plugin-store',
-      order: 20,
-      label: () => t('settings.nav'),
-      locale: NS,
-      inject: () => ({ api, openStore, t }),
-    }, StoreSettingsSection));
-
-    // 3. 内置扩展的 UI（0.2：hub 一个包、多个可开关的内部插件）。
+    // 内置扩展的 UI（0.2：hub 一个包、多个可开关的内部插件）。
     //
     //    开关的唯一来源是 host 的 `extensions` Remote（它读的是扩展自己也在读的
     //    那份 `extensions.json`）。于是"host 让位"与"UI 不出现"天然一致 ——
