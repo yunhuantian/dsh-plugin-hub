@@ -1,0 +1,555 @@
+/**
+ * Client facade over the `pluginStore` Typert Remote + tiny UI state stores.
+ * All calls return the unwrapped value and throw on an error envelope.
+ */
+import { TYPERT_REMOTE } from '../contracts/remote.js';
+export type Category = 'tool' | 'agent' | 'ui' | 'data' | 'vision' | 'docs' | 'memory' | 'usage' | 'notify' | 'dev' | 'chat' | 'hub' | 'hub-ext' | 'other';
+export interface PluginSummary {
+    packageName: string;
+    repoFullName: string;
+    name: string;
+    shortDescription: string;
+    developer: string;
+    iconUrl: string | null;
+    categories: Category[];
+    version: string | null;
+    stars: number;
+    downloads: number;
+    rating: number;
+    ratingCount: number;
+    installed: boolean;
+    enabled: boolean | null;
+    updatedAt: string | null;
+    /** Download source: 'npm' (registry, direct) or 'github' (clone, may need proxy). */
+    source: 'npm' | 'github';
+    /** Whether the package is published on npm (can install via npm registry). */
+    hasNpm: boolean;
+    /** Whether the package has a GitHub repository (can install via git clone). */
+    hasGit: boolean;
+    /** Trust level from the ecosystem index; null = unknown. */
+    trustLevel?: string | null;
+    /** True when the row came from the bundle's offline seed catalog (not synced yet). */
+    seed?: boolean;
+    /** Estimated health snapshot (0-100) — for list sorting. */
+    health: number;
+}
+export interface VersionRow {
+    version: string;
+    publishedAt: string | null;
+    changelog: string | null;
+    tagName: string | null;
+}
+export interface DepEdge {
+    name: string;
+    version: string | null;
+    kind: 'runtime' | 'dev' | 'peer';
+}
+export interface ReviewRow {
+    id: number;
+    actor: string;
+    score: number;
+    comment: string;
+    createdAt: string;
+}
+export interface DependentRow {
+    packageName: string;
+    name: string;
+    version: string | null;
+    rating: number;
+    installed: boolean;
+}
+export interface PluginDetail extends PluginSummary {
+    fullDescription: string;
+    usage: string;
+    topics: string[];
+    license: string | null;
+    homepage: string | null;
+    repoUrl: string;
+    defaultBranch: string;
+    screenshots: string[];
+    versions: VersionRow[];
+    dependencies: DepEdge[];
+    dependents: DependentRow[];
+    reviews: ReviewRow[];
+    /** Locally installed version (null when not installed). */
+    installedVersion?: string | null;
+    /** True when installed and an update is available. */
+    hasUpdate?: boolean;
+}
+export interface OpResult {
+    ok: boolean;
+    message: string;
+    detail: string | null;
+}
+export interface InstallReceipt extends OpResult {
+    packageName: string;
+    restartRequired: boolean;
+    reloadRequired: boolean;
+    /** Environment variables the plugin reads that the user may need to configure. */
+    requiredEnv?: string[];
+}
+export interface SyncStatus {
+    state: 'idle' | 'syncing' | 'error';
+    lastSyncAt: string | null;
+    lastSyncTotal: number;
+    lastError: string | null;
+    nextSyncAt: string | null;
+    scheduleHours: number;
+}
+export interface StoreSettings {
+    tokenConfigured: boolean;
+    tokenMasked: string;
+    scheduleHours: number;
+    profileName: string;
+    rateLimitRemaining: number | null;
+    dbPath: string;
+    pluginCount: number;
+}
+export interface AuditRow {
+    id: number;
+    actor: string;
+    action: string;
+    target: string;
+    result: string;
+    message: string;
+    createdAt: string;
+}
+export interface AuditPage {
+    total: number;
+    rows: AuditRow[];
+}
+export interface InstalledPlugin {
+    packageName: string;
+    entryId: string;
+    name: string;
+    /** 'system' (Loader infra), 'download' (registry/git installs), or 'own' (local file:/link: — user-created plugins). */
+    category: 'system' | 'download' | 'own';
+    /** Sub-group within the parent category. */
+    group: string;
+    groupLabel: string;
+    enabled: boolean;
+    phase: string | null;
+    managed: boolean;
+    /** Infrastructure entries that must not be disabled from the UI. */
+    protected: boolean;
+    /** Whether this row can be uninstalled on its own (false for system entries and hub's in-package plugins). */
+    uninstallable?: boolean;
+    /** Alias of category. */
+    type: string;
+    /** Local install path for 自创作插件; null otherwise. */
+    localPath: string | null;
+    /** Whether the local plugin has been published (npm exists / repository declared). */
+    published: boolean;
+    /** Public repository URL for published local plugins; null otherwise. */
+    repoUrl: string | null;
+    /** Installed version read from the local package.json. */
+    version?: string | null;
+    /** Latest known version from the store mirror (npm / GitHub release). */
+    latestVersion?: string | null;
+    /** True when the installed version is older than the latest known one. */
+    hasUpdate?: boolean;
+}
+export interface CategoryToggleResult {
+    ok: boolean;
+    message: string;
+    detail: string | null;
+    changed: number;
+    skipped: Array<{
+        packageName: string;
+        message: string;
+    }>;
+}
+export interface ScaffoldInfo {
+    templateRepo: string;
+    templateUrl: string;
+    docsUrl: string;
+    guide: string;
+    commands: string[];
+    categories: string[];
+}
+export interface ListFilters {
+    category?: Category | null;
+    query?: string | null;
+    sort?: 'random' | 'health' | 'stars' | 'rating' | 'downloads' | 'updated' | 'name' | null;
+    installedOnly?: boolean | null;
+    limit?: number | null;
+    offset?: number | null;
+}
+export interface RemoteApi {
+    list(filters: ListFilters): Promise<{
+        total: number;
+        plugins: PluginSummary[];
+    }>;
+    detail(packageName: string): Promise<PluginDetail>;
+    syncNow(): Promise<OpResult>;
+    syncStatus(): Promise<SyncStatus>;
+    settings(): Promise<StoreSettings>;
+    setGithubToken(token: string, actor: string): Promise<OpResult>;
+    clearGithubToken(actor: string): Promise<OpResult>;
+    setSchedule(hours: number, actor: string): Promise<OpResult>;
+    install(packageName: string, actor: string, source?: 'auto' | 'npm' | 'git'): Promise<InstallReceipt>;
+    installProgress(packageName: string): Promise<{
+        phase: string;
+        percent: number | null;
+        detail: string;
+        updatedAt: number;
+    } | null>;
+    /** Locally-developed plugins available for one-click publishing. */
+    myPlugins(): Promise<Array<{
+        packageName: string;
+        name: string;
+        localPath: string | null;
+        published: boolean;
+        repoUrl: string | null;
+        version: string | null;
+        description: string | null;
+        pkgName: string;
+    }>>;
+    /** One-click publish to GitHub / npm. */
+    publish(payload: {
+        packageName: string;
+        target: 'github' | 'npm' | 'both';
+        githubToken?: string;
+        npmToken?: string;
+        visibility: 'public' | 'private';
+        description?: string;
+        topics?: string[];
+        writeReadme?: boolean;
+    }, actor: string): Promise<{
+        ok: boolean;
+        message: string;
+        detail: string | null;
+        repoUrl: string | null;
+        npmUrl: string | null;
+        packageName: string;
+        security?: {
+            level: 'clean' | 'warning' | 'malicious';
+            findings: Array<{
+                severity: 'critical' | 'warning';
+                rule: string;
+                target: string;
+                detail: string;
+            }>;
+        };
+    }>;
+    publishProgress(packageName: string): Promise<{
+        phase: string;
+        percent: number | null;
+        detail: string;
+        updatedAt: number;
+    } | null>;
+    uninstall(packageName: string, actor: string): Promise<InstallReceipt>;
+    setEnabled(packageName: string, enabled: boolean, actor: string): Promise<InstallReceipt>;
+    setCategoryEnabled(category: 'system' | 'download' | 'own', enabled: boolean, actor: string): Promise<CategoryToggleResult>;
+    installed(): Promise<InstalledPlugin[]>;
+    rate(packageName: string, score: number, comment: string, actor: string): Promise<OpResult>;
+    listReviews(packageName: string): Promise<ReviewRow[]>;
+    /** GitHub issues of a plugin's repo (read-only discussion board). */
+    issues(packageName: string): Promise<Array<{
+        number: number;
+        title: string;
+        state: 'open' | 'closed';
+        comments: number;
+        createdAt: string | null;
+        user: string | null;
+    }>>;
+    audit(query: {
+        action?: string | null;
+        actor?: string | null;
+        target?: string | null;
+        limit?: number | null;
+        offset?: number | null;
+    }): Promise<AuditPage>;
+    dependencyGraph(packageName: string): Promise<{
+        root: string;
+        rootName: string;
+        dependencies: DepEdge[];
+        dependents: DependentRow[];
+    }>;
+    scaffold(): Promise<ScaffoldInfo>;
+    /** Encyclopedia directory: mirrored plugins + external catalog entries. */
+    wikiHub(filters?: {
+        query?: string;
+        category?: string;
+        source?: string;
+        limit?: number;
+        offset?: number;
+    }): Promise<{
+        total: number;
+        items: Array<{
+            packageName: string;
+            repoFullName: string;
+            name: string;
+            developer: string;
+            shortDescription: string;
+            categories: string[];
+            trustLevel: string | null;
+            health: number | null;
+            source: 'mirror' | 'catalog';
+        }>;
+    }>;
+    /** Encyclopedia entry for one plugin (structured knowledge page). */
+    wiki(packageName: string): Promise<{
+        packageName: string;
+        name: string;
+        developer: string;
+        repoFullName: string | null;
+        categories: string[];
+        description: string;
+        shortDescription: string;
+        trustLevel: string | null;
+        license: string | null;
+        homepage: string | null;
+        npmInstall: string;
+        gitInstall: string | null;
+        usage: string;
+        highlights: string;
+        bestPractices: string;
+        versionCount: number;
+        latestVersion: string | null;
+        dependencies: Array<{
+            name: string;
+            type: string;
+        }>;
+        related: Array<{
+            packageName: string;
+            name: string;
+            developer: string;
+            shortDescription: string;
+        }>;
+    }>;
+    /** Health leaderboard — top 20 by score, with last-sync time. */
+    healthHub(): Promise<{
+        updatedAt: string | null;
+        items: Array<{
+            packageName: string;
+            name: string;
+            developer: string;
+            health: number;
+            level: 'healthy' | 'attention' | 'stale';
+            rank: number;
+            lastUpdate: string | null;
+            downloads: number;
+            stars: number;
+            versionCount: number;
+            categories: string[];
+        }>;
+    }>;
+    /** Per-plugin health detail: score breakdown + release timeline + download trend. */
+    healthDetail(packageName: string): Promise<{
+        packageName: string;
+        name: string;
+        developer: string;
+        repoFullName: string | null;
+        health: number;
+        level: 'healthy' | 'attention' | 'stale';
+        breakdown: {
+            activity: number;
+            distribution: number;
+            bugs: number;
+            community: number;
+            releases: number;
+        };
+        lastUpdate: string | null;
+        downloads: number;
+        stars: number;
+        openIssues: number | null;
+        timeline: Array<{
+            version: string;
+            publishedAt: string | null;
+        }>;
+        downloadTrend: Array<{
+            date: string;
+            downloads: number;
+        }>;
+        commitActivity: Array<{
+            date: string;
+            count: number;
+        }>;
+        starGains: Array<{
+            date: string;
+            count: number;
+        }>;
+        /** Whether a GitHub token is configured (star timestamps need it). */
+        hasToken: boolean;
+    }>;
+    /** Collected skills (conversation-callable SKILL.md) with installed state. */
+    skillList(filters?: {
+        query?: string | null;
+        category?: string | null;
+        platform?: string | null;
+        limit?: number | null;
+    }): Promise<{
+        total: number;
+        items: Array<{
+            id: string;
+            name: string;
+            description: string;
+            descriptionZh: string;
+            version: string;
+            author: string;
+            repoFullName: string;
+            categories: string[];
+            platform: string;
+            installed: boolean;
+        }>;
+    }>;
+    /** Full SKILL.md content for the detail view. */
+    skillDetail(id: string): Promise<{
+        id: string;
+        name: string;
+        description: string;
+        descriptionZh: string;
+        version: string;
+        author: string;
+        repoFullName: string;
+        skillPath: string;
+        categories: string[];
+        platform: string;
+        content: string;
+        installed: boolean;
+        installedDir: string | null;
+    }>;
+    skillInstall(id: string, actor: string): Promise<OpResult>;
+    skillUninstall(name: string, actor: string): Promise<OpResult>;
+    /** Locally installed skills (from $DSH_HOME/skills + ~/.agents/skills). */
+    skillInstalled(): Promise<Array<{
+        name: string;
+        dir: string;
+        description: string;
+        version: string;
+    }>>;
+    /** dsh-bench 跑分（按插件名；报告缺失时 found=false）。 */
+    bench(packageName: string): Promise<{
+        found: boolean;
+        updatedAt: string | null;
+        ecosystemAvg: number | null;
+        entry: Record<string, unknown> | null;
+    }>;
+    /** 在 dsh 内立即跑分（Mock 零 token，调用 dsh-bench CLI）。 */
+    benchRun(packageName: string, mode?: 'mock' | 'e2e'): Promise<{
+        ok: boolean;
+        message: string;
+        detail: {
+            found: boolean;
+            updatedAt: string | null;
+            ecosystemAvg: number | null;
+            entry: Record<string, unknown> | null;
+        } | null;
+    }>;
+    /**
+     * hub 内置扩展名册 + 实时状态（0.2：一个包、多个可开关的内部插件）。
+     * `enabled` 是开关的生效值，`phase` 是扩展自己上报的运行阶段。
+     */
+    extensions(): Promise<ExtensionsSnapshot>;
+    /** 开关一个内置扩展（写开关文件，重启 dsh 后生效）。 */
+    extensionSet(id: string, enabled: boolean): Promise<OpResult>;
+    /** 版本化价格表（旧 → 新）：UI 用它标注"当时价/现价"的口径来源。 */
+    pricingTable(): Promise<PricingSnapshot>;
+}
+/** 一个内建插件的运行行。 */
+export interface ExtensionRow {
+    id: string;
+    rowId: string;
+    entry: string;
+    name: string;
+    nameEn: string;
+    description: string;
+    descriptionEn: string;
+    /** 所属分组（foundation / safety / publish / insight / ops）。 */
+    group: string;
+    /** 硬依赖的插件 id。 */
+    requires: string[];
+    /** 依赖它的插件（关掉它时提示会牵连谁）。 */
+    dependents: Array<{
+        id: string;
+        name: string;
+    }>;
+    /** 自己的开关值。 */
+    enabled: boolean;
+    /** 开关 + 依赖都满足（真的在跑）。 */
+    runnable: boolean;
+    /** 因依赖没开而让位时缺的那几个。 */
+    blockedBy: Array<{
+        id: string;
+        name: string;
+    }>;
+    /** active / disabled / blocked / failed / idle（插件上报）。 */
+    phase: string;
+    detail: string;
+    reportedAt: number;
+    service: string | null;
+    ui: string | null;
+    order: number;
+    /** loader 里的真实阶段：active/pending/failed/disabled/null。 */
+    loaderPhase: string | null;
+}
+/** 一个内建插件分组。 */
+export interface ExtensionGroup {
+    id: string;
+    name: string;
+    nameEn: string;
+    description: string;
+    descriptionEn: string;
+    order: number;
+}
+export interface ExtensionsSnapshot {
+    currentPriceVersion: string;
+    /** 内建插件总数。 */
+    pluginCount: number;
+    /** 已装配的数量。 */
+    activeCount: number;
+    groups: ExtensionGroup[];
+    rows: ExtensionRow[];
+}
+export interface PricingVersionRow {
+    version: string;
+    label: string;
+    effectiveFrom: string;
+    effectiveTo: string | null;
+    note: string;
+    source: string;
+    peakMultiplier: number | null;
+    peakNote: string | null;
+    models: string[];
+}
+export interface PricingSnapshot {
+    current: string;
+    versions: PricingVersionRow[];
+}
+export declare function unwrap<T>(result: {
+    ok: true;
+    value: T;
+} | {
+    ok: false;
+    error: {
+        code: string;
+        message: string;
+    };
+}): T;
+/** Wrap a raw remote namespace into the typed facade. */
+export declare function makeApi(remote: Record<string, any>): RemoteApi;
+export { TYPERT_REMOTE };
+type Listener = () => void;
+/** Whether the store modal is open (shared between the sidebar button and the settings section). */
+export declare const openStoreStore: {
+    getSnapshot: () => boolean;
+    subscribe: (listener: Listener) => () => void;
+    set: (next: boolean) => void;
+};
+export declare const openStore: () => void;
+export declare const closeStore: () => void;
+/** Selected view inside the modal; detail navigation is local to the app. */
+export declare const viewStore: {
+    getSnapshot: () => "installed" | "health" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "discover" | "skill";
+    subscribe: (listener: Listener) => () => void;
+    set: (next: "installed" | "health" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "discover" | "skill") => void;
+};
+export declare const setView: (view: "discover" | "wiki" | "skill" | "installed" | "publish" | "health" | "scaffold" | "audit" | "settings") => void;
+/** Operator display name used for audit attribution (persisted locally). */
+export declare function getActor(): string;
+export declare function setActor(name: string): void;
+/** Readable form used by the settings view. */
+export declare function actorDisplay(): string;
+export declare function formatCount(n: number): string;
+export declare function formatDate(iso: string | null): string;
