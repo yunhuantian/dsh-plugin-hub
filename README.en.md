@@ -226,6 +226,49 @@ npm run check:contract # contract round-trip: host payload ⨯ zod contract (cat
 
 ## Changelog
 
+### 0.2.1 (2026-10-14)
+
+**Adapted to dsh 0.2.x (issue #6)**
+
+- Seven `@deepseek-ai/dsh-*` peers widened from `^0.1.0-rc.6` to
+  `^0.1.0-rc.6 || ^0.2.0-rc.1`. The old range **structurally excludes** every 0.2.x, so
+  installing on dsh `0.2.0-rc.2` was rejected by the compatibility check — and since all
+  nine published versions shared the same range, there was no version to downgrade to.
+- Dropped the `@deepseek-ai/dsh-client-runtime` peer: that package is no longer published
+  on the 0.2 line (it stops at `0.1.1-rc.2`), and the built client bundle has not
+  referenced it since the 0.2 adaptation (see `scripts/build-client.mjs`). The entry was
+  simply left behind.
+- `version-guard` gains a pre-publish check: every `dsh-*` peer range is verified against
+  the **running** harness version, with a hint naming the range to add. This is the gate
+  that was missing.
+
+**Quality-gate false positive fixed (issue #4)**
+
+- The specifier regex let a keyword sit directly against a **closing** quote, so
+  `if (argument === "--import" || argument === "--loader")` was read as
+  `import" || argument === "`, yielding the bogus specifier ` || argument === `. That was
+  reported as an undeclared dependency, blocking the install and rolling it back — the
+  affected plugin's (`dsh-damage-pulse@4.0.8`) real dependencies were complete.
+- Specifiers are now extracted from the three real forms (`from '…'` / `import '…'` /
+  `import('…')` / `require('…')`), each requiring a real separator between keyword and
+  quote, plus a fallback that only accepts names shaped like npm package names.
+- A blocked install now reconciles `dsh.profile.bundles` on rollback, so a rejected
+  install cannot leave a bundle entry behind for a dependency that was removed.
+
+**Settings page follows the Harness locale (PR #5, by @Oonatech)**
+
+- The settings section never received `t` at all, so all 42 of its visible strings were
+  hard-coded literals and the page stayed Chinese whatever the Harness locale was — not a
+  missing translation, a component that never asked.
+- Everything now goes through the catalogue (57 new `settings.*` keys, zh/en symmetric),
+  and the `label` no longer bypasses it either.
+
+**Other**
+
+- Removed the hub-managed "Connectors" settings and its Remote
+  (`connectorStatus` / `connectorConfigSet`): since 0.2 dsh-connector owns its own settings
+  namespace and browser card, and two entry points editing the same config only fight.
+
 ### 0.2.0 (2026-09-11)
 
 **Architecture: the split-off pieces come back — one package, 21 switchable internal plugins**

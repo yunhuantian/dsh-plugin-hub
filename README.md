@@ -324,6 +324,41 @@ src/
 
 ## 更新日志
 
+### 0.2.1（2026-10-14）
+
+**适配 dsh 0.2.x（issue #6）**
+
+- 7 个 `@deepseek-ai/dsh-*` peer 由 `^0.1.0-rc.6` 拓宽为 `^0.1.0-rc.6 || ^0.2.0-rc.1`：
+  原范围在 semver 上**结构性排除**所有 0.2.x，导致 dsh `0.2.0-rc.2` 上安装被兼容性
+  检查拒绝，而且 9 个已发布版本共用同一组范围、没有可降级的目标；
+- 移除 `@deepseek-ai/dsh-client-runtime` peer：该包在 0.2 线上已不再发布（停在
+  `0.1.1-rc.2`），而内建 client 产物自 0.2 适配起就不再引用它（见
+  `scripts/build-client.mjs` 的说明）—— 这条 peer 是漏清理的残留；
+- `version-guard` 新增一项发布前检查：逐个核对 `dsh-*` peer 的范围是否覆盖
+  **运行中的** harness 版本，覆盖不到就给出该补哪一段范围。补上这次漏掉的那道闸。
+
+**质量门误报修复（issue #4）**
+
+- 提取 import 的正则原本允许关键字紧贴一个**收尾**引号，于是
+  `if (argument === "--import" || argument === "--loader")` 被读成
+  `import" || argument === "`，提出 ` || argument === ` 这种伪包名 → 判定「依赖不完整」
+  → 拦截安装并回滚。受害插件（`dsh-damage-pulse@4.0.8`）的真实依赖其实是完整的；
+- 现在按三种真实形态提取（`from '…'` / `import '…'` / `import('…')` / `require('…')`），
+  关键字与引号之间必须有真分隔符；并加一道兜底：裸名要长得像 npm 包名才认；
+- 拦截回滚时一并 reconcile `dsh.profile.bundles`，避免出现「依赖已删、bundle 条目还在」
+  的悬空 profile。
+
+**设置页跟随 Harness 语言（PR #5，来自 @Oonatech）**
+
+- 设置区此前完全没拿到 `t`，42 处可见文案是硬编码字面量，所以无论 Harness 语言是什么
+  都显示中文（不是缺翻译，是组件从没去查）；
+- 现在全部走词表（新增 57 个 `settings.*` 键，zh/en 对称），`label` 也不再绕过词表。
+
+**其它**
+
+- 移除 hub 代管的「连接器」设置与配套 Remote（`connectorStatus` / `connectorConfigSet`）：
+  dsh-connector 0.2 起自带设置命名空间与浏览器卡片，两个入口改同一份配置只会互相打架。
+
 ### 0.2.0（2026-09-11）
 
 **架构：一个包、21 个可开关的内部插件（与 DSH 本体同构）**
