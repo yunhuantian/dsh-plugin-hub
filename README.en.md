@@ -226,6 +226,27 @@ npm run check:contract # contract round-trip: host payload ⨯ zod contract (cat
 
 ## Changelog
 
+### 0.2.2 (2026-10-14)
+
+**Fix the typert contract on dsh 0.2.x (the part 0.2.1 missed)**
+
+Widening the peer range in 0.2.1 made the hub installable on 0.2.x, but at **boot** the
+typert-loader rejected its Remote contract: `invocation "dsh-plugin-hub#pluginStore/list"
+parameter codec has no create() factory` — the whole typert-loader entry failed to activate,
+so every store Remote call was unavailable. (That failure was masked before 0.2.1, when the
+package was skipped wholesale.)
+
+Cause: 0.2.x changed how a wire codec exposes its schema — from a **direct field** to a
+**lazy factory**. `requireStrictCodec` now requires `typeof codec.create === 'function'`.
+Official generated artifacts (`*.typert.host.js`) use
+`{ mode: 'strict', typeSymbol, create: () => zodSchema }`.
+
+- `strict()` now emits **both**: `create` for 0.2.x and `schema` for 0.1.x. Old runtimes
+  ignore the unknown field, new runtimes only read `create`.
+- Measured on a real 0.2.0-rc.2 boot: warnings drop from `2 entries did not activate` to
+  **1** — typert-loader no longer fails; only dsh-connector remains, pending its own
+  0.2.x settings-API port.
+
 ### 0.2.1 (2026-10-14)
 
 **Adapted to dsh 0.2.x (issue #6)**

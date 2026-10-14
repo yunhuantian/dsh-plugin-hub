@@ -324,6 +324,25 @@ src/
 
 ## 更新日志
 
+### 0.2.2（2026-10-14）
+
+**修 dsh 0.2.x 上 typert 契约不兼容（0.2.1 的补漏）**
+
+0.2.1 放宽 peer 范围后 hub 能在 0.2.x 上安装，但**启动时 typert-loader 会拒绝 hub 的
+Remote 契约**：`invocation "dsh-plugin-hub#pluginStore/list" parameter codec has no
+create() factory`，整条 typert-loader 条目激活失败 → 商店的 Remote 接口全部不可用。
+（这个失败在 0.2.1 之前被「整包被跳过」掩盖着，所以一直没暴露。）
+
+根因：0.2.x 把 wire codec 取 schema 的方式从**直挂字段**改成了**惰性工厂** ——
+`requireStrictCodec` 现在要求 `typeof codec.create === 'function'`。
+官方生成物（`*.typert.host.js`）的形状是
+`{ mode: 'strict', typeSymbol, create: () => zodSchema }`。
+
+- `strict()` 现在**两个字段都给**：`create` 喂 0.2.x、`schema` 留给 0.1.x，
+  老 runtime 忽略未知字段、新 runtime 只认 `create`，互不干扰；
+- 实测（真实 0.2.0-rc.2 启动）：告警从 `2 entries did not activate` 降到 **1**
+  —— typert-loader 不再失败，只剩尚未适配 0.2.x 设置 API 的 dsh-connector。
+
 ### 0.2.1（2026-10-14）
 
 **适配 dsh 0.2.x（issue #6）**

@@ -236,8 +236,24 @@ export const scaffoldInfo = z.object({
   categories: z.array(z.string()).readonly(),
 }).readonly();
 
-const strict = (typeSymbol: string, schema: z.ZodType): { mode: 'strict'; typeSymbol: string; schema: z.ZodType } => ({ mode: 'strict', typeSymbol, schema });
-const parameter = (name: string, schema: z.ZodType): { name: string; wire: string; source: 'json'; codec: { mode: 'strict'; typeSymbol: string; schema: z.ZodType } } => ({ name, wire: name, source: 'json', codec: strict(`dsh-plugin-hub/types#${name}`, schema) });
+/**
+ * A `strict` wire codec.
+ *
+ * ⚠️ 0.2.x 的协议把「取 schema」从**直挂字段**改成了**惰性工厂**：
+ * dsh-typert-loader 的 `requireStrictCodec` 现在要求
+ * `typeof codec.create === 'function'`，缺了就抛
+ * `... parameter codec has no create() factory` —— 而这一抛会让**整条
+ * typert-loader 条目**激活失败（表现为启动时 `N entries did not activate`），
+ * hub 的商店 Remote 接口随之全部不可用。
+ * 官方生成物（`*.typert.host.js`）的形状是：
+ *   { mode: 'strict', typeSymbol, create: <() => zodSchema> }
+ *
+ * 这里**两个字段都给**：`create` 喂 0.2.x，`schema` 留给 0.1.x，
+ * 老 runtime 读不到未知字段、新 runtime 只认 create，互不干扰。
+ */
+type StrictCodec = { mode: 'strict'; typeSymbol: string; schema: z.ZodType; create: () => z.ZodType };
+const strict = (typeSymbol: string, schema: z.ZodType): StrictCodec => ({ mode: 'strict', typeSymbol, schema, create: () => schema });
+const parameter = (name: string, schema: z.ZodType): { name: string; wire: string; source: 'json'; codec: StrictCodec } => ({ name, wire: name, source: 'json', codec: strict(`dsh-plugin-hub/types#${name}`, schema) });
 
 const filters = z.object({
   category: category.nullish(),
@@ -269,7 +285,7 @@ const RESULT_SYMBOL: Record<string, string> = {
   listReviews: 'ReviewList',
 };
 
-const descriptor = (method: string, parameters: Array<{ name: string; wire: string; source: 'json'; codec: { mode: 'strict'; typeSymbol: string; schema: z.ZodType } }>, result: z.ZodType): Record<string, unknown> => ({
+const descriptor = (method: string, parameters: Array<{ name: string; wire: string; source: 'json'; codec: StrictCodec }>, result: z.ZodType): Record<string, unknown> => ({
   id: `dsh-plugin-hub#pluginStore/${method}`,
   service: 'pluginStore',
   namespace: 'pluginStore',
