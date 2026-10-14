@@ -32,21 +32,51 @@ function isBuiltin(spec: string): boolean {
   return ['fs', 'fs/promises', 'path', 'os', 'url', 'util', 'events', 'stream', 'buffer', 'crypto', 'child_process', 'module', 'process', 'assert', 'net', 'http', 'https', 'zlib', 'querystring', 'readline', 'tty', 'worker_threads', 'timers', 'string_decoder', 'dns', 'perf_hooks', 'constants', 'console', 'cluster', 'domain', 'inspector', 'repl', 'tls', 'trace_events', 'v8', 'vm', 'wasi', 'test', 'sqlite'].includes(spec);
 }
 
+/**
+ * A bare specifier is only credible if it looks like an npm package name
+ * (optional scope, then a name). Anything with spaces, `=`, quotes or other
+ * punctuation came out of a string literal rather than a module request.
+ */
+const VALID_PACKAGE_NAME = /^@[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$|^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/**
+ * The import forms that actually carry a module specifier, each requiring a
+ * real separator between the keyword and the quote.
+ *
+ * The previous single regex — `\b(?:from|import|require)\s*\(?\s*['"]` — let a
+ * keyword run straight into a *closing* quote, so a plain string comparison
+ * such as `argument === "--import" || argument === "--loader"` produced the
+ * specifiers ` || argument === ` and `""`. Those were then reported as
+ * undeclared dependencies and the install was blocked, even though the
+ * package's real dependencies were complete. Requiring whitespace (static
+ * forms) or `(` (call forms) after the keyword removes that whole class.
+ */
+const SPECIFIER_PATTERNS: RegExp[] = [
+  /\bfrom\s+(['"])([^'"]+)\1/g,                    // import … from 'x' / export … from 'x'
+  /\bimport\s+(['"])([^'"]+)\1/g,                  // side-effect import 'x'
+  /\b(?:import|require)\s*\(\s*(['"])([^'"]+)\1/g, // import('x') / require('x')
+];
+
 /** Extract bare (non-relative, non-builtin) module specifiers from source. */
 function extractSpecifiers(source: string): Set<string> {
   const found = new Set<string>();
-  const re = /\b(?:from|import|require)\s*\(?\s*['"]([^'"]+)['"]/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(source)) !== null) {
-    const spec = m[1];
-    if (!spec) continue;
-    if (spec.startsWith('.') || spec.startsWith('node:') || spec.startsWith('#')) continue;
-    if (spec.includes('?') || spec.includes('&')) continue;
-    // Strip subpath (e.g. @deepseek-ai/dsh-client-runtime/dist/index.js -> package root)
-    const bare = spec.startsWith('@')
-      ? spec.split('/').slice(0, 2).join('/')
-      : spec.split('/')[0];
-    found.add(bare);
+  for (const re of SPECIFIER_PATTERNS) {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(source)) !== null) {
+      const spec = m[2];
+      if (!spec) continue;
+      if (spec.startsWith('.') || spec.startsWith('node:') || spec.startsWith('#')) continue;
+      if (spec.includes('?') || spec.includes('&')) continue;
+      // Strip subpath (e.g. @deepseek-ai/dsh-client-runtime/dist/index.js -> package root)
+      const bare = spec.startsWith('@')
+        ? spec.split('/').slice(0, 2).join('/')
+        : spec.split('/')[0];
+      // Last line of defence: a specifier that is not a plausible package name
+      // is a regex artefact, not a missing dependency — never block on it.
+      if (!VALID_PACKAGE_NAME.test(bare)) continue;
+      found.add(bare);
+    }
   }
   return found;
 }

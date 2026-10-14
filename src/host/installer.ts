@@ -461,6 +461,10 @@ export async function installPlugin(profile: ProfileInfo, installSpec: string, e
   const gate = runQualityGate(name, profile.directory);
   if (!gate.ok) {
     await runPnpm(profile.directory, ['remove', name]);
+    // The dependency is gone now, so a bundle-layer entry for it would be a
+    // dangling row that makes the next boot look for a package that is not
+    // there. Reconcile it away (no-op when the entry was never written).
+    reconcileBundles(profile, [], [name]);
     return {
       ok: false,
       message: `质量门拦截：${name} 依赖不完整`,
@@ -475,6 +479,7 @@ export async function installPlugin(profile: ProfileInfo, installSpec: string, e
   const conflicts = checkConflicts(profile, name);
   if (!conflicts.ok) {
     await runPnpm(profile.directory, ['remove', name]);
+    reconcileBundles(profile, [], [name]);
     return {
       ok: false,
       message: `冲突检查拦截：${name} 与现有环境存在冲突`,
