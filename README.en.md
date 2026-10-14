@@ -158,7 +158,7 @@ Collects `SKILL.md` skill packages across ecosystems with search and one-click l
 - **Audit log**: installs, uninstalls, toggles, ratings and publishes recorded with actor identity
 - **Mirror sync**: caches `topic:dsh-plugin` repository metadata in local SQLite (concurrency pool + session caches)
 - **Dependency graph**: dependencies and dependents of a plugin
-- **Ecosystem hooks**: reads the local state of dsh-bench (benchmarks) and dsh-connector (IM bridges)
+- **Ecosystem hooks**: reads local dsh-bench state (benchmarks) and can trigger a run
 
 ---
 

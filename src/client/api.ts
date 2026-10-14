@@ -295,10 +295,6 @@ export interface RemoteApi {
     message: string;
     detail: { found: boolean; updatedAt: string | null; ecosystemAvg: number | null; entry: Record<string, unknown> | null } | null;
   }>;
-  /** dsh-connector 状态（插件是否安装 + 平台配置/运行状态）。 */
-  connectorStatus(): Promise<{ installed: boolean; config: Record<string, unknown>; status: Record<string, unknown> }>;
-  /** dsh-connector 平台配置保存（重启 dsh 生效）。 */
-  connectorConfigSet(platform: string, payload: Record<string, unknown>): Promise<OpResult>;
   /**
    * hub 内置扩展名册 + 实时状态（0.2：一个包、多个可开关的内部插件）。
    * `enabled` 是开关的生效值，`phase` 是扩展自己上报的运行阶段。
@@ -422,8 +418,6 @@ export function makeApi(remote: Record<string, any>): RemoteApi {
     skillInstalled: async () => unwrap(await r.skillInstalled()),
     bench: async (packageName) => unwrap(await r.bench(packageName)),
     benchRun: async (packageName, mode) => unwrap(await r.benchRun(packageName, mode ?? 'mock')),
-    connectorStatus: async () => unwrap(await r.connectorStatus()),
-    connectorConfigSet: async (platform, payload) => unwrap(await r.connectorConfigSet(platform, payload)),
     extensions: async () => unwrap(await r.extensions()),
     extensionSet: async (id, enabled) => unwrap(await r.extensionSet(id, enabled)),
     pricingTable: async () => unwrap(await r.pricingTable()),

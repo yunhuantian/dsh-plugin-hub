@@ -201,7 +201,7 @@ OpenAI / Anthropic / Google / Qwen / 智谱 / Moonshot 的价格一并内置。
 - **镜像同步**：把 GitHub 上 `topic:dsh-plugin` 仓库元数据缓存进本地 SQLite（并发池 + 会话缓存），
   列表与搜索不再受网络与限频影响
 - **依赖拓扑**：插件的依赖与被依赖关系图
-- **生态接入**：跑分机（dsh-bench）与 IM 连接器（dsh-connector）的本地状态读写
+- **生态接入**：跑分机（dsh-bench）的本地状态读写与一键触发跑分
 
 ---
 
