@@ -21,6 +21,8 @@ import {
   type ProfileInfo,
 } from './installer.js';
 import { npmAvailability, clearNpmCache } from './npm-probe.js';
+import { addListSource, crawlSource, installSpecFor, readSourceIndex, removeSource } from './list-sources.js';
+import { repoKeyOf } from '../../../hub-market-index/src/index.js';
 import { publishPlugin as runPublish, type PublishRequest } from './publish.js';
 import { computeHealth, type HealthLevel } from '../../../hub-score/src/index.js';
 import { syncTrustLevels } from './trust-sync.js';
@@ -1066,6 +1068,151 @@ export class PluginStoreService extends TypertRemoteService {
       if (out.length >= 15) break;
     }
     return out;
+  }
+
+  // ---- 列表来源（自动识别 / 认证列表 / 整合包）----------------------------
+
+  /**
+   * 注册表里的全部来源。`kind` 由调用方过滤（0 列表 / 1 整合包）：
+   * 商店两区只看 kind=0，整合包页只看 kind=1。
+   */
+  @Remote('listSources')
+  async listSources(): Promise<Record<string, unknown>> {
+    return { items: this.db.listListSources() };
+  }
+
+  /**
+   * 添加一份列表来源：URL / 上传文件 / 粘贴文本皆可。
+   * 容器类型与 `expect` 不符会直接报错（两个页面各管各的，不互相污染）。
+   */
+  @Remote('addListSource')
+  async addListSource(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const throttled = this.throttle('add-list', 20);
+    if (throttled) return { ok: false, message: throttled, detail: null, row: null, warnings: [] };
+    const expect = Number(input.expect) === 1 ? 1 : 0;
+    try {
+      const { row, warnings } = await addListSource(this.db, resolveDshHome(), {
+        url: typeof input.url === 'string' ? input.url : undefined,
+        text: typeof input.text === 'string' ? input.text : undefined,
+        base64: typeof input.base64 === 'string' ? input.base64 : undefined,
+        label: typeof input.label === 'string' ? input.label : undefined,
+        expect,
+        provenance: expect === 0 && input.certified === true ? 'certified' : 'auto',
+      });
+      this.appendAudit('list_add', row.label, 'ok', `${row.format} → ${row.entries} 条（${row.id}）`, 'ui');
+      return {
+        ok: true,
+        message: `已添加「${row.label}」，${row.entries} 条`,
+        detail: warnings.length > 0 ? warnings.join('\n') : null,
+        row,
+        warnings,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.appendAudit('list_add', String(input.url ?? input.label ?? 'text'), 'failed', message, 'ui');
+      return { ok: false, message, detail: null, row: null, warnings: [] };
+    }
+  }
+
+  /** 添加一个自动爬取的来源（GitHub 用户 / 组织 / 仓库 / topic）。 */
+  @Remote('addCrawlSource')
+  async addCrawlSource(spec: string, label?: string): Promise<Record<string, unknown>> {
+    const throttled = this.throttle('add-crawl', 10);
+    if (throttled) return { ok: false, message: throttled, detail: null, row: null, warnings: [] };
+    try {
+      const { row, warnings } = await crawlSource(this.db, resolveDshHome(), this.github, spec);
+      if (typeof label === 'string' && label.trim() !== '') {
+        row.label = label.trim();
+        this.db.upsertListSource(row);
+      }
+      this.appendAudit('list_crawl', row.label, 'ok', `${row.entries} 条`, 'ui');
+      return { ok: true, message: `已爬取「${row.label}」，${row.entries} 条`, detail: null, row, warnings };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.appendAudit('list_crawl', String(spec), 'failed', message, 'ui');
+      return { ok: false, message, detail: null, row: null, warnings: [] };
+    }
+  }
+
+  @Remote('removeListSource')
+  async removeListSource(id: string): Promise<Record<string, unknown>> {
+    const row = this.db.getListSource(String(id));
+    if (!row) return { ok: false, message: '来源不存在', detail: null };
+    removeSource(this.db, resolveDshHome(), row.id);
+    this.appendAudit('list_remove', row.label, 'ok', row.id, 'ui');
+    return { ok: true, message: `已移除「${row.label}」`, detail: null };
+  }
+
+  /** 读取一个来源的条目（分页 + 关键字过滤）。 */
+  @Remote('listSourceEntries')
+  async listSourceEntries(id: string, query?: string, limit?: number, offset?: number): Promise<Record<string, unknown>> {
+    const source = this.db.getListSource(String(id));
+    if (!source) throw new Error('来源不存在');
+    const index = readSourceIndex(source, resolveDshHome());
+    const needle = (query ?? '').trim().toLowerCase();
+    const max = Math.max(1, Math.min(500, Number(limit) || 200));
+    const skip = Math.max(0, Number(offset) || 0);
+    const items: Array<Record<string, unknown>> = [];
+    let matched = 0;
+    for (let i = 0; i < index.count; i++) {
+      const name = index.name(i);
+      const description = index.description(i);
+      if (needle !== '' && !name.toLowerCase().includes(needle) && !description.toLowerCase().includes(needle)) continue;
+      matched++;
+      if (matched <= skip) continue;
+      if (items.length >= max) continue;
+      const entry = {
+        name,
+        url: index.url(i),
+        description,
+        category: index.category(i),
+        deps: index.deps(i),
+        flags: index.flags(i),
+        repoKey: repoKeyOf(index.url(i)),
+        installSpec: installSpecFor({ name, url: index.url(i) }),
+      };
+      items.push(entry);
+    }
+    return { source, total: matched, items };
+  }
+
+  /**
+   * 从列表条目一键安装：条目自带 tarball / npm / GitHub 地址时直接用该地址装，
+   * 已经在镜像库里的包走原有安装链路（它会挑 npm 还是 git）。
+   */
+  @Remote('installFromSource')
+  async installFromSource(sourceId: string, name: string, actorRaw: string): Promise<Record<string, unknown>> {
+    const actor = sanitizeActor(actorRaw);
+    const source = this.db.getListSource(String(sourceId));
+    if (!source) return { ok: false, message: '来源不存在', detail: null, packageName: String(name), restartRequired: false, reloadRequired: false };
+    const index = readSourceIndex(source, resolveDshHome());
+    const target = String(name);
+    let entry: { name: string; url: string } | null = null;
+    for (let i = 0; i < index.count; i++) {
+      if (index.name(i) === target) { entry = { name: target, url: index.url(i) }; break; }
+    }
+    if (entry === null) return { ok: false, message: `列表里没有 ${target}`, detail: null, packageName: target, restartRequired: false, reloadRequired: false };
+    if (this.db.getPlugin(target)) return this.installPlugin(target, actor, 'auto');
+
+    const spec = installSpecFor(entry);
+    if (spec === null) {
+      return { ok: false, message: '该条目的地址不是可安装的产物（既不是 npm/tarball 也不是 GitHub 仓库）', detail: entry.url, packageName: target, restartRequired: false, reloadRequired: false };
+    }
+    const throttled = this.throttle('install', 30);
+    if (throttled) return { ok: false, message: throttled, detail: null, packageName: target, restartRequired: false, reloadRequired: false };
+    try {
+      this.installProgressMap.set(target, { phase: 'resolving', percent: 0, detail: `来自「${source.label}」…`, updatedAt: Date.now() });
+      const receipt = await runInstall(this.profile, spec, target, actor, (p) => this.installProgressMap.set(target, { ...p, updatedAt: Date.now() }));
+      this.appendAudit('install', target, receipt.ok ? 'ok' : 'failed', `list:${source.label} → ${spec}`, actor);
+      this.installProgressMap.delete(target);
+      if (receipt.ok) this.installedCache = null;
+      return { ...receipt, packageName: target };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.appendAudit('install', target, 'failed', message, actor);
+      this.installProgressMap.delete(target);
+      return { ok: false, message, detail: null, packageName: target, restartRequired: false, reloadRequired: false };
+    }
   }
 
   @Remote('syncNow')

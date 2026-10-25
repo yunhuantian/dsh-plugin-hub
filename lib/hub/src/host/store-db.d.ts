@@ -83,6 +83,28 @@ export interface AuditQuery {
 export declare function resolveDshHome(): string;
 /** Resolve the store database directory (created on demand). */
 export declare function storeDataDir(home?: string): string;
+/**
+ * 一个「列表来源」：用户或开发者添加的一份市场列表（kind=0），
+ * 或一份整合包（kind=1）。原始文件落在 `storages/plugin-store/lists/<id>.dpmidx`。
+ */
+export interface ListSourceRow {
+    id: string;
+    label: string;
+    /** 来源地址；本地上传时为空串。 */
+    url: string;
+    /** 容器类型：0 = 插件列表，1 = 整合包。 */
+    kind: number;
+    /** 归一化后的格式：dpmidx | json | ndjson | crawl。 */
+    format: string;
+    /** auto = 自动识别；certified = 认证（由我们签发）。 */
+    provenance: 'auto' | 'certified';
+    /** 发布者标识（认证时记录签发主体）。 */
+    publisher: string;
+    entries: number;
+    addedAt: string;
+    syncedAt: string | null;
+    error: string | null;
+}
 export declare class StoreDB {
     db: DatabaseSync;
     readonly path: string;
@@ -132,6 +154,13 @@ export declare class StoreDB {
     replaceCatalog(source: string, repos: string[]): number;
     /** All repo full-names in the external catalogs. */
     catalogRepos(): Set<string>;
+    upsertListSource(row: ListSourceRow): void;
+    /** kind 省略时返回全部；否则只返回该容器类型（0 列表 / 1 整合包）。 */
+    listListSources(kind?: number): ListSourceRow[];
+    getListSource(id: string): ListSourceRow | undefined;
+    removeListSource(id: string): boolean;
+    /** 认证列表数量（认证区为空时 UI 要给出明确解释）。 */
+    countCertified(): number;
     /** Upsert skills collected from the ecosystem (keyed by their stable id). */
     replaceSkills(skills: SkillRow[]): number;
     /** Every collected skill, newest sync first. */

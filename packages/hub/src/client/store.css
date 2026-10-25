@@ -566,3 +566,17 @@
   border: 1px solid rgba(88, 132, 232, .32);
   white-space: nowrap;
 }
+
+/* ============ 列表来源：自动识别 / 认证列表 / 整合包 ============ */
+.dps-zone { flex-direction: column; gap: 12px; display: flex; min-height: 100%; }
+.dps-sourcebar { align-items: flex-start; justify-content: space-between; gap: 10px; display: flex; flex-wrap: wrap; }
+.dps-chip-count { opacity: .65; margin-left: 6px; font-size: 11px; }
+.dps-chip-danger { color: #d9534f; }
+.dps-chip-danger:hover { border-color: #d9534f; }
+.dps-field { align-items: center; gap: 8px; display: flex; flex-wrap: wrap; }
+.dps-field .dps-input { flex: 1 1 260px; min-width: 200px; }
+.dps-file { color: var(--dsw-alias-label-secondary); max-width: 260px; font-size: 12px; }
+.dps-count { color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+.dps-ok { color: #2f9e44; }
+.dps-bad { color: #e05252; }
+.dps-card-error { color: #e05252; margin: 0; font-size: 12px; }

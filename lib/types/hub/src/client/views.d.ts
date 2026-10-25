@@ -13,7 +13,7 @@ interface DetailProps {
     t: (key: string) => string;
 }
 export declare function Detail({ api, packageName, onBack, onChanged, t }: DetailProps): ReactNode;
-export type StoreView = 'discover' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'extensions' | 'settings';
+export type StoreView = 'discover' | 'certified' | 'modpack' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'extensions' | 'settings';
 export declare function StoreViewBody({ view, api, onOpen, onChanged, t }: {
     view: StoreView;
     api: RemoteApi;

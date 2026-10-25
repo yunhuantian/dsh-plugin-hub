@@ -88,6 +88,42 @@ export interface InstallReceipt extends OpResult {
     /** Environment variables the plugin reads that the user may need to configure. */
     requiredEnv?: string[];
 }
+/**
+ * 一个「列表来源」。
+ * kind: 0 = 插件列表（商店），1 = 整合包（整合包页）。
+ * provenance: auto = 自动识别，certified = 认证。
+ */
+export interface ListSource {
+    id: string;
+    label: string;
+    url: string;
+    kind: number;
+    format: string;
+    provenance: 'auto' | 'certified';
+    publisher: string;
+    entries: number;
+    addedAt: string;
+    syncedAt: string | null;
+    error: string | null;
+}
+/** 列表里的一条条目。 */
+export interface ListEntry {
+    name: string;
+    url: string;
+    description: string;
+    category: string;
+    deps: string[];
+    flags: number;
+    repoKey: string;
+    installSpec: string | null;
+}
+export interface ListMutation {
+    ok: boolean;
+    message: string;
+    detail: string | null;
+    row: ListSource | null;
+    warnings: string[];
+}
 export interface SyncStatus {
     state: 'idle' | 'syncing' | 'error';
     lastSyncAt: string | null;
@@ -446,6 +482,28 @@ export interface RemoteApi {
     extensionSet(id: string, enabled: boolean): Promise<OpResult>;
     /** 版本化价格表（旧 → 新）：UI 用它标注"当时价/现价"的口径来源。 */
     pricingTable(): Promise<PricingSnapshot>;
+    /** 全部列表来源（kind=0 商店两区 / kind=1 整合包）。 */
+    listSources(): Promise<{
+        items: ListSource[];
+    }>;
+    /** 添加来源：URL / 粘贴文本 / 上传文件（base64）三选一。 */
+    addListSource(input: {
+        url?: string | null;
+        text?: string | null;
+        base64?: string | null;
+        label?: string | null;
+        expect: number;
+        certified?: boolean | null;
+    }): Promise<ListMutation>;
+    /** 自动爬取一个 GitHub 用户 / 组织 / 仓库 / topic。 */
+    addCrawlSource(spec: string, label?: string | null): Promise<ListMutation>;
+    removeListSource(id: string): Promise<OpResult>;
+    listSourceEntries(id: string, query?: string | null, limit?: number | null, offset?: number | null): Promise<{
+        source: ListSource;
+        total: number;
+        items: ListEntry[];
+    }>;
+    installFromSource(sourceId: string, name: string, actor: string): Promise<InstallReceipt>;
 }
 /** 一个内建插件的运行行。 */
 export interface ExtensionRow {
@@ -533,9 +591,9 @@ export { TYPERT_REMOTE };
 type Listener = () => void;
 /** Selected view inside the store; detail navigation is local to the app. */
 export declare const viewStore: {
-    getSnapshot: () => "installed" | "health" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "extensions" | "discover" | "skill";
+    getSnapshot: () => "installed" | "health" | "certified" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "extensions" | "discover" | "modpack" | "skill";
     subscribe: (listener: Listener) => () => void;
-    set: (next: "installed" | "health" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "extensions" | "discover" | "skill") => void;
+    set: (next: "installed" | "health" | "certified" | "audit" | "settings" | "scaffold" | "publish" | "wiki" | "extensions" | "discover" | "modpack" | "skill") => void;
 };
 export declare const setView: (view: "discover" | "wiki" | "skill" | "installed" | "publish" | "health" | "scaffold" | "audit" | "extensions" | "settings") => void;
 /** Operator display name used for audit attribution (persisted locally). */

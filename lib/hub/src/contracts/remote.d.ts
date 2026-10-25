@@ -221,6 +221,38 @@ export declare const opResult: z.ZodReadonly<z.ZodObject<{
     message: z.ZodString;
     detail: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>>;
+/**
+ * 一个「列表来源」：商店两区与整合包页的共同注册项。
+ * kind: 0 = 插件列表（商店），1 = 整合包（整合包页）。
+ * provenance: auto = 自动识别，certified = 认证（由我们签发）。
+ */
+export declare const listSourceRow: z.ZodReadonly<z.ZodObject<{
+    id: z.ZodString;
+    label: z.ZodString;
+    url: z.ZodString;
+    kind: z.ZodNumber;
+    format: z.ZodString;
+    provenance: z.ZodEnum<{
+        auto: "auto";
+        certified: "certified";
+    }>;
+    publisher: z.ZodString;
+    entries: z.ZodNumber;
+    addedAt: z.ZodString;
+    syncedAt: z.ZodNullable<z.ZodString>;
+    error: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>>;
+/** 列表里的一条可安装条目。 */
+export declare const listEntry: z.ZodReadonly<z.ZodObject<{
+    name: z.ZodString;
+    url: z.ZodString;
+    description: z.ZodString;
+    category: z.ZodString;
+    deps: z.ZodReadonly<z.ZodArray<z.ZodString>>;
+    flags: z.ZodNumber;
+    repoKey: z.ZodString;
+    installSpec: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>>;
 export declare const installReceipt: z.ZodReadonly<z.ZodObject<{
     ok: z.ZodBoolean;
     message: z.ZodString;
@@ -242,9 +274,9 @@ export declare const categoryToggleResult: z.ZodReadonly<z.ZodObject<{
 }, z.core.$strip>>;
 export declare const syncStatus: z.ZodReadonly<z.ZodObject<{
     state: z.ZodEnum<{
+        error: "error";
         idle: "idle";
         syncing: "syncing";
-        error: "error";
     }>;
     lastSyncAt: z.ZodNullable<z.ZodString>;
     lastSyncTotal: z.ZodNumber;

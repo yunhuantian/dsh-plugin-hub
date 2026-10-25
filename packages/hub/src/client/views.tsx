@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 import type { Category, InstalledPlugin, PluginDetail, PluginSummary, RemoteApi } from './api';
 import { formatCount, formatDate, getActor, setActor, actorDisplay } from './api';
 import { ExtensionsView } from './extensions-view';
+import { AutoZone, CertifiedZone, ModpackZone } from './sources-view';
 import { Markdown } from './markdown';
 import { DependencyGraph } from './graph';
 
@@ -2336,11 +2337,21 @@ function Scaffold({ api, t }: { api: RemoteApi; t: (k: string) => string }): Rea
 
 // ---- view switcher (used by StoreApp) ----------------------------------------
 
-export type StoreView = 'discover' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'extensions' | 'settings';
+export type StoreView = 'discover' | 'certified' | 'modpack' | 'wiki' | 'skill' | 'installed' | 'publish' | 'health' | 'scaffold' | 'audit' | 'extensions' | 'settings';
 
 export function StoreViewBody({ view, api, onOpen, onChanged, t }: { view: StoreView; api: RemoteApi; onOpen: (name: string) => void; onChanged: () => void; t: (key: string) => string }): ReactNode {
   switch (view) {
-    case 'discover': return <Discover api={api} onOpen={onOpen} onChanged={onChanged} t={t} />;
+    // 自动识别 = 内置爬取 + 任意来源的列表；内置那张网格由 Discover 提供。
+    case 'discover': return (
+      <AutoZone
+        api={api}
+        t={t}
+        onChanged={onChanged}
+        renderBuiltin={() => <Discover api={api} onOpen={onOpen} onChanged={onChanged} t={t} />}
+      />
+    );
+    case 'certified': return <CertifiedZone api={api} t={t} onChanged={onChanged} />;
+    case 'modpack': return <ModpackZone api={api} t={t} onChanged={onChanged} />;
     case 'wiki': return <WikiExplorer api={api} onOpen={onOpen} t={t} />;
     case 'skill': return <SkillStore api={api} t={t} />;
     case 'installed': return <Installed api={api} onOpen={onOpen} t={t} />;

@@ -127,6 +127,26 @@ export declare class PluginStoreService extends TypertRemoteService {
     /** 在 dsh 内触发「立即跑分」：调用 dsh-bench CLI 现场跑 Mock（零 token）。 */
     benchRun(packageName: string, mode?: 'mock' | 'e2e'): Promise<Record<string, unknown>>;
     private skillSiblings;
+    /**
+     * 注册表里的全部来源。`kind` 由调用方过滤（0 列表 / 1 整合包）：
+     * 商店两区只看 kind=0，整合包页只看 kind=1。
+     */
+    listSources(): Promise<Record<string, unknown>>;
+    /**
+     * 添加一份列表来源：URL / 上传文件 / 粘贴文本皆可。
+     * 容器类型与 `expect` 不符会直接报错（两个页面各管各的，不互相污染）。
+     */
+    addListSource(input: Record<string, unknown>): Promise<Record<string, unknown>>;
+    /** 添加一个自动爬取的来源（GitHub 用户 / 组织 / 仓库 / topic）。 */
+    addCrawlSource(spec: string, label?: string): Promise<Record<string, unknown>>;
+    removeListSource(id: string): Promise<Record<string, unknown>>;
+    /** 读取一个来源的条目（分页 + 关键字过滤）。 */
+    listSourceEntries(id: string, query?: string, limit?: number, offset?: number): Promise<Record<string, unknown>>;
+    /**
+     * 从列表条目一键安装：条目自带 tarball / npm / GitHub 地址时直接用该地址装，
+     * 已经在镜像库里的包走原有安装链路（它会挑 npm 还是 git）。
+     */
+    installFromSource(sourceId: string, name: string, actorRaw: string): Promise<Record<string, unknown>>;
     syncNow(): Promise<Record<string, unknown>>;
     syncStatus(): Promise<Record<string, unknown>>;
     settings(): Promise<Record<string, unknown>>;

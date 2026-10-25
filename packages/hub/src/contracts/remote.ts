@@ -126,6 +126,47 @@ export const opResult = z.object({
   detail: z.string().nullable(),
 }).readonly();
 
+/**
+ * 一个「列表来源」：商店两区与整合包页的共同注册项。
+ * kind: 0 = 插件列表（商店），1 = 整合包（整合包页）。
+ * provenance: auto = 自动识别，certified = 认证（由我们签发）。
+ */
+export const listSourceRow = z.object({
+  id: z.string(),
+  label: z.string(),
+  url: z.string(),
+  kind: z.number(),
+  format: z.string(),
+  provenance: z.enum(['auto', 'certified']),
+  publisher: z.string(),
+  entries: z.number(),
+  addedAt: z.string(),
+  syncedAt: z.string().nullable(),
+  error: z.string().nullable(),
+}).readonly();
+
+/** 列表里的一条可安装条目。 */
+export const listEntry = z.object({
+  name: z.string(),
+  url: z.string(),
+  description: z.string(),
+  category: z.string(),
+  deps: z.array(z.string()).readonly(),
+  flags: z.number(),
+  /** 归一化后的仓库键（同一仓库的不同插件共享它，用于分组而不是合并）。 */
+  repoKey: z.string(),
+  /** 可直接交给 pnpm 的安装规格；null = 该地址不可安装。 */
+  installSpec: z.string().nullable(),
+}).readonly();
+
+const listSourceMutation = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+  detail: z.string().nullable(),
+  row: listSourceRow.nullable(),
+  warnings: z.array(z.string()).readonly(),
+}).readonly();
+
 export const installReceipt = z.object({
   ok: z.boolean(),
   message: z.string(),
@@ -299,6 +340,39 @@ const installedList = z.array(installedPlugin).readonly();
 
 export const descriptors = [
   descriptor('list', [parameter('filters', filters)], pluginListResult),
+  /** 全部列表来源（kind=0 商店两区 / kind=1 整合包）。 */
+  descriptor('listSources', [], z.object({
+    items: z.array(listSourceRow).readonly(),
+  })),
+  /** 添加来源：URL / 粘贴文本 / 上传文件（base64）三选一。 */
+  descriptor('addListSource', [parameter('input', z.object({
+    url: z.string().nullish(),
+    text: z.string().nullish(),
+    base64: z.string().nullish(),
+    label: z.string().nullish(),
+    expect: z.number(),
+    certified: z.boolean().nullish(),
+  }).readonly())], listSourceMutation),
+  /** 自动爬取一个 GitHub 用户 / 组织 / 仓库 / topic。 */
+  descriptor('addCrawlSource', [parameter('spec', z.string()), parameter('label', z.string().nullish())], listSourceMutation),
+  descriptor('removeListSource', [parameter('id', z.string())], opResult),
+  /** 分页读取某个来源的条目。 */
+  descriptor('listSourceEntries', [
+    parameter('id', z.string()),
+    parameter('query', z.string().nullish()),
+    parameter('limit', z.number().nullish()),
+    parameter('offset', z.number().nullish()),
+  ], z.object({
+    source: listSourceRow,
+    total: z.number(),
+    items: z.array(listEntry).readonly(),
+  })),
+  /** 从列表条目一键安装（tarball / npm / GitHub 地址）。 */
+  descriptor('installFromSource', [
+    parameter('sourceId', z.string()),
+    parameter('name', z.string()),
+    parameter('actor', z.string()),
+  ], installReceipt),
   descriptor('detail', [parameter('packageName', z.string())], pluginDetail),
   descriptor('skillList', [parameter('filters', z.object({ query: z.string().nullish(), category: z.string().nullish(), platform: z.string().nullish(), limit: z.number().nullish() }).readonly().nullish())], z.object({
     total: z.number(),

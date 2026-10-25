@@ -163,6 +163,20 @@ for (const [label, ok, detail] of checks) {
   console.log(`  ${ok ? '✓' : '✗'} ${label.padEnd(22)} ${detail}`);
 }
 
+// ── 2.5 方法面一致性：每个 @Remote 方法都必须有契约描述符，反之亦然 ──────────
+// 漏一条描述符的后果是客户端调用直接抛「unknown invocation」，而构建不会报错。
+{
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'packages', 'hub', 'src', 'host', 'index.ts'), 'utf8');
+  const hostMethods = new Set([...source.matchAll(/@Remote\('([^']+)'\)/g)].map((m) => m[1]));
+  const declared = new Set(descriptors.map((d) => d.method));
+  const missing = [...hostMethods].filter((m) => !declared.has(m));
+  const orphan = [...declared].filter((m) => !hostMethods.has(m));
+  const ok = missing.length === 0 && orphan.length === 0;
+  if (!ok) failed += 1;
+  console.log(`  ${ok ? '✓' : '✗'} ${'方法面一致性'.padEnd(22)} host ${hostMethods.size} 个 Remote / 契约 ${declared.size} 条${missing.length ? ` · 缺描述符: ${missing.join(', ')}` : ''}${orphan.length ? ` · 多余描述符: ${orphan.join(', ')}` : ''}`);
+}
+
 // ── 3. 鉴别力：未声明字段必须被剥掉，否则本检查形同虚设 ────────────────────
 const probed = descriptorOf('extensions').result.schema.parse({
   ...extensionsPayload,

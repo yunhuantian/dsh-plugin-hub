@@ -1,4 +1,4 @@
-import { IconCordisPlugin, IconRefresh, IconSettings, IconUser, IconWarning } from './icons';
+import { IconCordisPlugin, IconDownload, IconRefresh, IconSettings, IconUser, IconWarning } from './icons';
 /**
  * StoreApp: the store's shell — left navigation + detail navigation.
  *
@@ -12,6 +12,8 @@ import { Detail, StoreViewBody, type StoreView } from './views';
 
 const NAV_KEYS: Array<{ key: StoreView; labelKey: string; icon?: ReactNode }> = [
   { key: 'discover', labelKey: 'nav.discover', icon: <IconCordisPlugin size={16} /> },
+  { key: 'certified', labelKey: 'nav.certified', icon: <IconWarning size={16} /> },
+  { key: 'modpack', labelKey: 'nav.modpack', icon: <IconDownload size={16} /> },
   { key: 'wiki', labelKey: 'nav.wiki', icon: <IconWarning size={16} /> },
   { key: 'skill', labelKey: 'nav.skill', icon: <IconCordisPlugin size={16} /> },
   { key: 'installed', labelKey: 'nav.installed', icon: <IconRefresh size={16} /> },

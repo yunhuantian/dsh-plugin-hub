@@ -130,6 +130,45 @@ export function storeDataDir(home = resolveDshHome()): string {
   return join(home, 'storages', 'plugin-store');
 }
 
+/**
+ * 一个「列表来源」：用户或开发者添加的一份市场列表（kind=0），
+ * 或一份整合包（kind=1）。原始文件落在 `storages/plugin-store/lists/<id>.dpmidx`。
+ */
+export interface ListSourceRow {
+  id: string;
+  label: string;
+  /** 来源地址；本地上传时为空串。 */
+  url: string;
+  /** 容器类型：0 = 插件列表，1 = 整合包。 */
+  kind: number;
+  /** 归一化后的格式：dpmidx | json | ndjson | crawl。 */
+  format: string;
+  /** auto = 自动识别；certified = 认证（由我们签发）。 */
+  provenance: 'auto' | 'certified';
+  /** 发布者标识（认证时记录签发主体）。 */
+  publisher: string;
+  entries: number;
+  addedAt: string;
+  syncedAt: string | null;
+  error: string | null;
+}
+
+function toListSourceRow(row: Record<string, unknown>): ListSourceRow {
+  return {
+    id: String(row.id),
+    label: String(row.label ?? ''),
+    url: String(row.url ?? ''),
+    kind: Number(row.kind ?? 0),
+    format: String(row.format ?? 'dpmidx'),
+    provenance: row.provenance === 'certified' ? 'certified' : 'auto',
+    publisher: String(row.publisher ?? ''),
+    entries: Number(row.entries ?? 0),
+    addedAt: String(row.added_at ?? ''),
+    syncedAt: row.synced_at == null ? null : String(row.synced_at),
+    error: row.error == null ? null : String(row.error),
+  };
+}
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS plugins (
   package_name TEXT PRIMARY KEY,
@@ -234,6 +273,24 @@ CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- 用户/开发者添加的「列表来源」注册表。
+-- kind = 0 插件列表（商店两区）；kind = 1 整合包（独立的整合包页）。
+-- provenance = auto（自动识别：任意来源）| certified（认证：由我们签发）。
+CREATE TABLE IF NOT EXISTS list_sources (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  url TEXT NOT NULL DEFAULT '',
+  kind INTEGER NOT NULL DEFAULT 0,
+  format TEXT NOT NULL DEFAULT 'dpmidx',
+  provenance TEXT NOT NULL DEFAULT 'auto',
+  publisher TEXT NOT NULL DEFAULT '',
+  entries INTEGER NOT NULL DEFAULT 0,
+  added_at TEXT NOT NULL,
+  synced_at TEXT,
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_list_sources_kind ON list_sources(kind, provenance);
 `;
 
 export class StoreDB {
@@ -443,6 +500,52 @@ export class StoreDB {
     const rows = this.db.prepare('SELECT repo_full_name FROM catalog_plugins').all() as Array<{ repo_full_name: string }>;
     for (const r of rows) set.add(r.repo_full_name);
     return set;
+  }
+
+  // ---- list sources (user-added market lists / modpacks) --------------------
+
+  upsertListSource(row: ListSourceRow): void {
+    this.db.prepare(`
+      INSERT INTO list_sources (id, label, url, kind, format, provenance, publisher, entries, added_at, synced_at, error)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        label = excluded.label,
+        url = excluded.url,
+        kind = excluded.kind,
+        format = excluded.format,
+        provenance = excluded.provenance,
+        publisher = excluded.publisher,
+        entries = excluded.entries,
+        synced_at = excluded.synced_at,
+        error = excluded.error
+    `).run(
+      row.id, row.label, row.url, row.kind, row.format, row.provenance,
+      row.publisher, row.entries, row.addedAt, row.syncedAt, row.error,
+    );
+  }
+
+  /** kind 省略时返回全部；否则只返回该容器类型（0 列表 / 1 整合包）。 */
+  listListSources(kind?: number): ListSourceRow[] {
+    const rows = kind === undefined
+      ? this.db.prepare('SELECT * FROM list_sources ORDER BY added_at DESC').all()
+      : this.db.prepare('SELECT * FROM list_sources WHERE kind = ? ORDER BY added_at DESC').all(kind);
+    return (rows as Array<Record<string, unknown>>).map(toListSourceRow);
+  }
+
+  getListSource(id: string): ListSourceRow | undefined {
+    const row = this.db.prepare('SELECT * FROM list_sources WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    return row ? toListSourceRow(row) : undefined;
+  }
+
+  removeListSource(id: string): boolean {
+    const r = this.db.prepare('DELETE FROM list_sources WHERE id = ?').run(id);
+    return Number(r.changes) > 0;
+  }
+
+  /** 认证列表数量（认证区为空时 UI 要给出明确解释）。 */
+  countCertified(): number {
+    const row = this.db.prepare("SELECT COUNT(*) AS c FROM list_sources WHERE kind = 0 AND provenance = 'certified'").get() as { c: number };
+    return Number(row?.c ?? 0);
   }
 
   // ---- skills (conversation-callable SKILL.md registry) ----------------------
