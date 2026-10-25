@@ -15,7 +15,7 @@
  */
 import { readFileSync, writeFileSync, statSync } from 'node:fs'
 import { basename } from 'node:path'
-import { encodeMarketIndex, FLAG_ARTIFACT, FLAG_SOURCE } from '../lib/host/index-format.js'
+import { encodeMarketIndex, FLAG_ARTIFACT, FLAG_SOURCE } from '../lib/hub-market-index/src/index.js'
 
 /**
  * 从链接推断安装语义（调用方显式给了 flags 就不猜）。

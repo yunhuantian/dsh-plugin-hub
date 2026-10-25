@@ -24,10 +24,10 @@ const lib = join(dirname(fileURLToPath(import.meta.url)), '..', 'lib');
 /** lib/ 下是 ESM 产物，Windows 绝对路径必须转成 file:// URL 才能被 loader 接受。 */
 const load = (rel) => import(pathToFileURL(join(lib, rel)).href);
 
-const { descriptors } = await load('contracts/remote.js');
-const { HUB_PLUGINS, HUB_PLUGIN_GROUPS, resolveActivation, readStatuses, dependentsOf } = await load('host/plugins-state.js');
-const { latestTable } = await load('contracts/pricing.js');
-const { hubOwnedOf, hubSubIdOf, isLocalSpec, systemGroupOf } = await load('host/index.js');
+const { descriptors } = await load('hub/src/contracts/remote.js');
+const { HUB_PLUGINS, HUB_PLUGIN_GROUPS, resolveActivation, readStatuses, dependentsOf } = await load('hub/src/host/plugins-state.js');
+const { latestTable } = await load('hub/src/contracts/pricing.js');
+const { hubOwnedOf, hubSubIdOf, isLocalSpec, systemGroupOf } = await load('hub/src/host/index.js');
 
 /** 契约描述符的定位：字段是 `method`，结果 schema 在 `result.schema`。 */
 const descriptorOf = (method) => {
@@ -111,7 +111,7 @@ const parsedInstalled = descriptorOf('installed').result.schema.parse([{
 const installedRow = parsedInstalled[0] ?? {};
 
 // ── 4. 真实 profile：hub 的条目确实落进 hub 组 ─────────────────────────────
-const { resolveProfile } = await load('host/installer.js');
+const { resolveProfile } = await load('hub/src/host/installer.js');
 let patchRows = [];
 try {
   const { readFileSync, existsSync } = await import('node:fs');

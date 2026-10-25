@@ -3,14 +3,24 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/contracts/**/*.ts", "src/client/**/*.ts", "src/client/**/*.tsx"]
+  "include": [
+    "packages/hub/src/contracts/**/*.ts",
+    "packages/hub/src/client/**/*.ts",
+    "packages/hub/src/client/**/*.tsx"
+  ]
 }

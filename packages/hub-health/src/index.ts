@@ -10,8 +10,8 @@
  * 注意：本模块与 hub 核心是**两个独立的 cordis 条目**，所以这里不假设
  * `ctx.pluginStoreDb` 一定可用（用户可能只装了扩展）；对外只暴露纯计算。
  */
-import { computeHealth, LEVEL_LABEL, type HealthInput, type HealthResult } from '../host/health.js';
-import { activate } from './_runtime.js';
+import { computeHealth, LEVEL_LABEL, type HealthInput, type HealthResult } from '../../hub-score/src/index.js';
+import { activate } from '../../hub/src/extensions/_runtime.js';
 
 const ID = 'health';
 

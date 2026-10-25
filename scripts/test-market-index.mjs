@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { openMarketIndex, mergeMarketIndexes } from '../lib/host/index-format.js'
+import { openMarketIndex, mergeMarketIndexes } from '../lib/hub-market-index/src/index.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const work = mkdtempSync(join(tmpdir(), 'fmt-'))

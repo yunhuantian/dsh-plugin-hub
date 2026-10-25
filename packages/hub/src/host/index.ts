@@ -22,7 +22,7 @@ import {
 } from './installer.js';
 import { npmAvailability, clearNpmCache } from './npm-probe.js';
 import { publishPlugin as runPublish, type PublishRequest } from './publish.js';
-import { computeHealth, type HealthLevel } from './health.js';
+import { computeHealth, type HealthLevel } from '../../../hub-score/src/index.js';
 import { syncTrustLevels } from './trust-sync.js';
 import { syncBlueWhaleCatalog } from './catalog-sync.js';
 import { syncSkills, parseSkillFrontmatter } from './skill-sync.js';

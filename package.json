@@ -28,111 +28,111 @@
   },
   "exports": {
     ".": {
-      "types": "./lib/host/index.d.ts",
-      "default": "./lib/host/index.js"
+      "types": "./lib/hub/src/host/index.d.ts",
+      "default": "./lib/hub/src/host/index.js"
     },
     "./remote": {
-      "types": "./lib/contracts/remote.d.ts",
-      "default": "./lib/contracts/remote.js"
+      "types": "./lib/hub/src/contracts/remote.d.ts",
+      "default": "./lib/hub/src/contracts/remote.js"
     },
     "./typert": {
-      "types": "./lib/contracts/remote.d.ts",
-      "default": "./lib/contracts/remote.js"
+      "types": "./lib/hub/src/contracts/remote.d.ts",
+      "default": "./lib/hub/src/contracts/remote.js"
     },
     "./pricing": {
-      "types": "./lib/contracts/pricing.d.ts",
-      "default": "./lib/contracts/pricing.js"
+      "types": "./lib/hub/src/contracts/pricing.d.ts",
+      "default": "./lib/hub/src/contracts/pricing.js"
     },
     "./extensions/store-db": {
-      "types": "./lib/extensions/store-db.d.ts",
-      "default": "./lib/extensions/store-db.js"
+      "types": "./lib/hub/src/extensions/store-db.d.ts",
+      "default": "./lib/hub/src/extensions/store-db.js"
     },
     "./extensions/github": {
-      "types": "./lib/extensions/github.d.ts",
-      "default": "./lib/extensions/github.js"
+      "types": "./lib/hub/src/extensions/github.d.ts",
+      "default": "./lib/hub/src/extensions/github.js"
     },
     "./extensions/npm-probe": {
-      "types": "./lib/extensions/npm-probe.d.ts",
-      "default": "./lib/extensions/npm-probe.js"
+      "types": "./lib/hub/src/extensions/npm-probe.d.ts",
+      "default": "./lib/hub/src/extensions/npm-probe.js"
     },
     "./extensions/seed-catalog": {
-      "types": "./lib/extensions/seed-catalog.d.ts",
-      "default": "./lib/extensions/seed-catalog.js"
+      "types": "./lib/hub/src/extensions/seed-catalog.d.ts",
+      "default": "./lib/hub/src/extensions/seed-catalog.js"
     },
     "./extensions/registry": {
-      "types": "./lib/extensions/registry.d.ts",
-      "default": "./lib/extensions/registry.js"
+      "types": "./lib/hub/src/extensions/registry.d.ts",
+      "default": "./lib/hub/src/extensions/registry.js"
     },
     "./extensions/installer": {
-      "types": "./lib/extensions/installer.d.ts",
-      "default": "./lib/extensions/installer.js"
+      "types": "./lib/hub/src/extensions/installer.d.ts",
+      "default": "./lib/hub/src/extensions/installer.js"
     },
     "./extensions/security": {
-      "types": "./lib/extensions/security.d.ts",
-      "default": "./lib/extensions/security.js"
+      "types": "./lib/hub/src/extensions/security.d.ts",
+      "default": "./lib/hub/src/extensions/security.js"
     },
     "./extensions/conflict": {
-      "types": "./lib/extensions/conflict.d.ts",
-      "default": "./lib/extensions/conflict.js"
+      "types": "./lib/hub/src/extensions/conflict.d.ts",
+      "default": "./lib/hub/src/extensions/conflict.js"
     },
     "./extensions/quality": {
-      "types": "./lib/extensions/quality.d.ts",
-      "default": "./lib/extensions/quality.js"
+      "types": "./lib/hub/src/extensions/quality.d.ts",
+      "default": "./lib/hub/src/extensions/quality.js"
     },
     "./extensions/trust": {
-      "types": "./lib/extensions/trust.d.ts",
-      "default": "./lib/extensions/trust.js"
+      "types": "./lib/hub/src/extensions/trust.d.ts",
+      "default": "./lib/hub/src/extensions/trust.js"
     },
     "./extensions/publish": {
-      "types": "./lib/extensions/publish.d.ts",
-      "default": "./lib/extensions/publish.js"
+      "types": "./lib/hub/src/extensions/publish.d.ts",
+      "default": "./lib/hub/src/extensions/publish.js"
     },
     "./extensions/version-guard": {
-      "types": "./lib/extensions/version-guard.d.ts",
-      "default": "./lib/extensions/version-guard.js"
+      "types": "./lib/hub/src/extensions/version-guard.d.ts",
+      "default": "./lib/hub/src/extensions/version-guard.js"
     },
     "./extensions/changelog": {
-      "types": "./lib/extensions/changelog.d.ts",
-      "default": "./lib/extensions/changelog.js"
+      "types": "./lib/hub/src/extensions/changelog.d.ts",
+      "default": "./lib/hub/src/extensions/changelog.js"
     },
     "./extensions/usage": {
-      "types": "./lib/extensions/usage.d.ts",
-      "default": "./lib/extensions/usage.js"
+      "types": "./lib/hub/src/extensions/usage.d.ts",
+      "default": "./lib/hub/src/extensions/usage.js"
     },
     "./extensions/health": {
-      "types": "./lib/extensions/health.d.ts",
-      "default": "./lib/extensions/health.js"
+      "types": "./lib/hub-health/src/index.d.ts",
+      "default": "./lib/hub-health/src/index.js"
     },
     "./extensions/update-check": {
-      "types": "./lib/extensions/update-check.d.ts",
-      "default": "./lib/extensions/update-check.js"
+      "types": "./lib/hub/src/extensions/update-check.d.ts",
+      "default": "./lib/hub/src/extensions/update-check.js"
     },
     "./extensions/dependency-graph": {
-      "types": "./lib/extensions/dependency-graph.d.ts",
-      "default": "./lib/extensions/dependency-graph.js"
+      "types": "./lib/hub/src/extensions/dependency-graph.d.ts",
+      "default": "./lib/hub/src/extensions/dependency-graph.js"
     },
     "./extensions/baike": {
-      "types": "./lib/extensions/baike.d.ts",
-      "default": "./lib/extensions/baike.js"
+      "types": "./lib/hub-wiki/src/index.d.ts",
+      "default": "./lib/hub-wiki/src/index.js"
     },
     "./extensions/skill-store": {
-      "types": "./lib/extensions/skill-store.d.ts",
-      "default": "./lib/extensions/skill-store.js"
+      "types": "./lib/hub/src/extensions/skill-store.d.ts",
+      "default": "./lib/hub/src/extensions/skill-store.js"
     },
     "./extensions/backup": {
-      "types": "./lib/extensions/backup.d.ts",
-      "default": "./lib/extensions/backup.js"
+      "types": "./lib/hub/src/extensions/backup.d.ts",
+      "default": "./lib/hub/src/extensions/backup.js"
     },
     "./extensions/diagnostics": {
-      "types": "./lib/extensions/diagnostics.d.ts",
-      "default": "./lib/extensions/diagnostics.js"
+      "types": "./lib/hub/src/extensions/diagnostics.d.ts",
+      "default": "./lib/hub/src/extensions/diagnostics.js"
     },
     "./market-index": {
-      "types": "./lib/host/index-format.d.ts",
-      "default": "./lib/host/index-format.js"
+      "types": "./lib/hub-market-index/src/index.d.ts",
+      "default": "./lib/hub-market-index/src/index.js"
     },
     "./client": {
-      "types": "./lib/types/client/index.d.ts",
+      "types": "./lib/types/hub/src/client/index.d.ts",
       "default": "./lib/client.js"
     },
     "./cordis.patch.yml": "./cordis.patch.yml",

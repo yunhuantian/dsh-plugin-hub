@@ -12,7 +12,7 @@ mkdirSync(profileDir, { recursive: true });
 process.env.DSH_HOME = home;
 
 const { Context } = require('@deepseek-ai/cordis');
-const { PluginStoreService } = require('../lib/host/index.js');
+const { PluginStoreService } = require('../lib/hub/src/host/index.js');
 
 const root = new Context();
 root.provide('loader', { ctx: { baseUrl: `file:///${profileDir.replace(/\\/g, '/')}/` } });

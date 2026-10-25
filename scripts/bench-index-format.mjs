@@ -12,7 +12,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { encodeMarketIndex, openMarketIndex } from '../lib/host/index-format.js'
+import { encodeMarketIndex, openMarketIndex } from '../lib/hub-market-index/src/index.js'
 
 const CATEGORIES = ['tool', 'agent', 'ui', 'data', 'vision', 'office', 'memory', 'usage', 'notify', 'dev', 'chat', 'aggregate']
 

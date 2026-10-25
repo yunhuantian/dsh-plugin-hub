@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const entry = join(root, 'src', 'client', 'index.tsx');
+const entry = join(root, 'packages', 'hub', 'src', 'client', 'index.tsx');
 const outBody = join(root, 'dist', 'client-body.js');
 const outFile = join(root, 'lib', 'client.js');
 const outMap = join(root, 'lib', 'client.js.map');

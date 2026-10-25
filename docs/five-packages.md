@@ -1,5 +1,41 @@
 # 五包拆分方案
 
+## 0. 当前仓库布局（已完成）
+
+代码已经按五区物理分开，**每区一个 `packages/<区>/` 目录，各自带 README**：
+
+```
+packages/
+├── hub/                        # ① 基础：市场 UI、安装、信任、数据底座
+│   ├── README.md
+│   └── src/{client,host,extensions,contracts}/
+├── hub-health/                 # ② 健康度：状态 + 排行（依赖 hub-score）
+│   ├── README.md
+│   └── src/index.ts
+├── hub-score/                  # ③ 跑分：computeHealth 纯算法（零依赖）
+│   ├── README.md
+│   └── src/index.ts
+├── hub-wiki/                   # ④ 百科（依赖基础包数据服务）
+│   ├── README.md
+│   └── src/index.ts
+└── hub-market-index/           # ⑤ 索引格式：DPMIDX v2 编解码 + 多源合并（零依赖）
+    ├── README.md
+    └── src/index.ts
+```
+
+构建产物同样分区：`lib/hub/src/...`、`lib/hub-health/src/...`、`lib/hub-score/src/...`、
+`lib/hub-wiki/src/...`、`lib/hub-market-index/src/...`。
+
+**入口名保持不变**：loader 仍按 `dsh-plugin-hub/extensions/{health,baike}` 加载，
+`package.json` 的 `exports` 把它们指向对应区的产物 —— 所以这次重构对运行时零影响
+（实测 `--dump-config` 22 行全部加载、0 条 `did not activate`）。
+
+> 剩余工作：把四个卫星区改成独立 npm 包（各自 `package.json` + 发布），
+> 并把 `hub/src/extensions/_runtime.ts` 提升为公共 plugin-kit。
+> 在此之前，`hub-health` / `hub-wiki` 通过相对路径引用基础区的 `_runtime`。
+
+---
+
 > 范围：把当前「一个包 + 21 个内建插件」收敛为**五个可单独发布/单独安装的插件**：
 > 基础 hub、健康度、跑分、百科、索引格式。
 > 本文给出每个包的所有权边界、公开 API、依赖方向、迁移顺序与验收标准。

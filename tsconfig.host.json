@@ -3,16 +3,28 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "outDir": "lib",
-    "rootDir": "src",
+    "rootDir": "packages",
     "strict": true,
     "declaration": true,
     "sourceMap": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/contracts/**/*.ts", "src/host/**/*.ts", "src/extensions/**/*.ts"]
+  "include": [
+    "packages/hub/src/contracts/**/*.ts",
+    "packages/hub/src/host/**/*.ts",
+    "packages/hub/src/extensions/**/*.ts",
+    "packages/hub-market-index/src/**/*.ts",
+    "packages/hub-score/src/**/*.ts",
+    "packages/hub-health/src/**/*.ts",
+    "packages/hub-wiki/src/**/*.ts"
+  ]
 }

@@ -6,7 +6,12 @@
     "emitDeclarationOnly": true,
     "declarationMap": false,
     "outDir": "lib/types",
-    "rootDir": "src"
+    "rootDir": "packages"
   },
-  "include": ["src/contracts/**/*.ts", "src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.d.ts"]
+  "include": [
+    "packages/hub/src/contracts/**/*.ts",
+    "packages/hub/src/client/**/*.ts",
+    "packages/hub/src/client/**/*.tsx",
+    "packages/hub/src/client/**/*.d.ts"
+  ]
 }
