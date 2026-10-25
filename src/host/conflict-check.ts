@@ -14,7 +14,7 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import type { ProfileInfo } from './installer.js';
 
 export interface ConflictFinding {
@@ -111,12 +111,39 @@ function checkPatchIntegrity(profile: ProfileInfo, packageName: string): string[
   let patchText = '';
   try { patchText = readFileSync(patchFile, 'utf8'); } catch { return problems; }
   const installed = installedDepNames(profile, packageName);
+  /**
+   * 真的能在 profile 里 resolve 出来吗？
+   *
+   * 只看 profile 的 `dependencies` 会漏掉两类合法目标：被 pnpm 提升的传递依赖、
+   * 以及由平台层提供的包。补丁 insert 行只要启动时找得到就是合法的，
+   * 所以以「能否 resolve」为准，而不是「是否写进 dependencies」。
+   */
+  const requireFromProfile = createRequire(join(profile.directory, 'noop.js'));
+  const resolvable = (spec: string): boolean => {
+    try { requireFromProfile.resolve(spec); return true; } catch { return false; }
+  };
+
   const insertNames = new Set<string>();
   for (const m of patchText.matchAll(/insert:\s*\[?[^\n]*|name:\s*([^\s,}]+)/g)) {
-    if (m[1]) insertNames.add(m[1]);
+    if (!m[1]) continue;
+    // YAML 允许 `name: "@scope/pkg"` / `name: 'pkg'`：引号不是名字的一部分。
+    // 不剥掉就永远匹配不上已装清单 → 一切带引号的激活行都被误判。
+    const name = m[1].replace(/^['"]+/, '').replace(/['"]+$/, '');
+    if (name) insertNames.add(name);
   }
+
   for (const name of insertNames) {
+    // ① 自指激活行：bundle 补丁的 insert 通常就写包自身
+    //    （如 dsh-context 的 `id/name: dsh-context`）。而 installedDepNames 刻意
+    //    把被测包排除在外，于是合法自指被当成「引用了未安装的包」→ block → 回滚。
+    //    这是 issue #7 的主因，按受影响面算是「所有 bundle 型插件」。
+    if (name === packageName) continue;
+    // ② 补丁里的相对入口（`name: ./index.js`）：不是包名，不该拿去查依赖。
+    if (/^\.{1,2}[\\/]/.test(name)) continue;
+    // ③ 绝对路径与 file:/link: 协议同理。
+    if (isAbsolute(name) || /^(file|link):/.test(name)) continue;
     if (installed.has(name)) continue;
+    if (resolvable(name)) continue;
     // platform / loader entry ids (base bundles) are provided by the app.
     if (/^@deepseek-ai\//.test(name) || /^(api-gateway|api-remotes|connection|client-hmr|client-locale|client-modules|client-runtime|hmr|include|locale|modules|runtime|timer|webserver|cordis-host-runner|ui-settings)$/.test(name)) continue;
     problems.push(`激活补丁引用了未安装的包 ${name}（启动时 loader 将找不到它）`);

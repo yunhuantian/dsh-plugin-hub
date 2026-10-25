@@ -10,7 +10,7 @@
  * `@deepseek-ai/*` platform surface, and relative paths are always allowed.
  */
 import { readFileSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 
@@ -163,6 +163,22 @@ function expandCandidatePath(raw: string, home: string): string | null {
  *   "~/.codex/pets" literals                  → <home>/.codex/pets
  *   const x = join(homedir(), ".codex"); join(x, "pets") → variable tracking
  */
+/**
+ * `join(homedir(), …)` 推出的路径，只保留 home 下**以点目录开头**的候选。
+ *
+ * 压缩/打包后的代码里常有 `join(homedir(), "effect", "Cause")` 这类由打包器合成的
+ * 调用 —— issue #7 实测抓到 `<home>/effect/Cause`、`<home>/constructor`、
+ * `<home>/payload`、`<home>/sentinels` 等。它们不是插件真要读的目录；
+ * 不加这道过滤，插件会被判成「缺目录」而保持禁用，还会提示用户去建这些目录。
+ *
+ * 显式的 `"~/.codex/pets"` 字面量不在此列 —— 那是作者的明确意图，见下面的分支。
+ */
+function isPlausibleHomeDir(candidate: string, home: string): boolean {
+  const rel = relative(home, candidate);
+  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return false;
+  return rel.split(/[\\/]/)[0].startsWith('.');
+}
+
 function extractDirectoryCandidates(source: string, home: string, variableBase: Map<string, string>): string[] {
   const found: string[] = [];
   const seen = new Set<string>();
@@ -173,6 +189,7 @@ function extractDirectoryCandidates(source: string, home: string, variableBase: 
   while ((m = homeJoin.exec(source)) !== null) {
     const parts = [m[2], m[4], m[6]].filter((p): p is string => typeof p === 'string');
     const candidate = join(home, ...parts);
+    if (!isPlausibleHomeDir(candidate, home)) continue;
     if (!seen.has(candidate)) { seen.add(candidate); found.push(candidate); }
   }
 
@@ -189,6 +206,7 @@ function extractDirectoryCandidates(source: string, home: string, variableBase: 
   const varDecl = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[^;\n]*?join\s*\(\s*homedir\s*\(\s*\)\s*,\s*(["'`])([^"'`]+)\2\s*\)/g;
   while ((m = varDecl.exec(source)) !== null) {
     const base = join(home, m[3]);
+    if (!isPlausibleHomeDir(base, home)) continue;
     variableBase.set(m[1], base);
     if (!seen.has(base)) { seen.add(base); found.push(base); }
   }
@@ -199,6 +217,7 @@ function extractDirectoryCandidates(source: string, home: string, variableBase: 
     const useRe = new RegExp(pattern, 'g');
     while ((m = useRe.exec(source)) !== null) {
       const candidate = join(base, m[2]);
+      if (!isPlausibleHomeDir(candidate, home)) continue;
       if (!seen.has(candidate)) { seen.add(candidate); found.push(candidate); }
     }
   }
@@ -215,6 +234,17 @@ function extractDirectoryCandidates(source: string, home: string, variableBase: 
 export function runQualityGate(packageName: string, profileDir: string): QualityGateReport {
   readCache.clear();
   const declared = declaredDeps(packageName, profileDir);
+  /**
+   * 未声明的包，若运行时能从 profile 里 resolve 出来，就不算缺。
+   *
+   * 作者的 `package.json` 漏写依赖、但 pnpm 装好 profile 之后实际可加载，是很常见的
+   * 情况（依赖由别处的传递依赖提上来）。只看声明就回滚会误伤这类插件 ——
+   * issue #7 里 `@xmanrui/dsh-im` 的 audio-decode / jimp / link-preview-js 就是这种。
+   */
+  const requireFromProfile = createRequire(join(profileDir, 'noop.js'));
+  const resolvable = (spec: string): boolean => {
+    try { requireFromProfile.resolve(spec); return true; } catch { return false; }
+  };
   const entry = resolveEntryFile(packageName, profileDir);
   if (!entry) {
     return { ok: true, missing: [], scanned: 0, missingDirs: [], detail: '无法解析插件入口，跳过质量门检查' };
@@ -263,6 +293,8 @@ export function runQualityGate(packageName: string, profileDir: string): Quality
             }
             continue;
           }
+          // 声明里没有，但 profile 里装好且能 resolve —— 运行时加载得到，不算缺。
+          if (resolvable(spec)) continue;
           if (!missing.has(spec)) missing.add(spec);
         }
   }
