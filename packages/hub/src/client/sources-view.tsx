@@ -175,20 +175,24 @@ function ListEntries({ api, source, t, onChanged }: CommonProps & { source: List
 }
 
 /** 来源标签条：内置爬取 + 已添加的来源。 */
-function SourceBar({ sources, selected, onSelect, onAdd, t, extra }: {
+function SourceBar({ sources, selected, onSelect, onAdd, t, extra, showBuiltin = true }: {
   sources: ListSource[];
   selected: string;
   onSelect: (id: string) => void;
   onAdd?: () => void;
   t: (k: string) => string;
   extra?: ReactNode;
+  /** 「内置爬取」只属于自动识别区：认证区与整合包页没有这个概念。 */
+  showBuiltin?: boolean;
 }): ReactNode {
   return (
     <div className="dps-sourcebar">
       <div className="dps-chips">
-        <button type="button" className={`dps-chip${selected === 'builtin' ? ' active' : ''}`} onClick={() => onSelect('builtin')}>
-          {t('src.builtin')}
-        </button>
+        {showBuiltin && (
+          <button type="button" className={`dps-chip${selected === 'builtin' ? ' active' : ''}`} onClick={() => onSelect('builtin')}>
+            {t('src.builtin')}
+          </button>
+        )}
         {sources.map((s) => (
           <button
             key={s.id}
@@ -394,7 +398,7 @@ export function CertifiedZone({ api, t, onChanged }: CommonProps): ReactNode {
   return (
     <div className="dps-zone">
       {sources.length > 0 && (
-        <SourceBar sources={sources} selected={selected} onSelect={setSelected} t={t} />
+        <SourceBar sources={sources} selected={selected} onSelect={setSelected} t={t} showBuiltin={false} />
       )}
       {error !== null && <div className="dps-error" role="alert"><IconWarning size={16} /><span className="dps-error-text">{error}</span></div>}
       {current === null ? (
@@ -448,6 +452,7 @@ export function ModpackZone({ api, t, onChanged }: CommonProps): ReactNode {
         onSelect={(id) => { setSelected(id); setAdding(false); }}
         onAdd={() => setAdding((v) => !v)}
         t={t}
+        showBuiltin={false}
         extra={current !== null ? (
           <button type="button" className="dps-chip dps-chip-danger" onClick={() => void remove()}>
             <IconTrash size={13} /> {t('src.remove')}
