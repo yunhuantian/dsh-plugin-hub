@@ -59,9 +59,6 @@
     - id: hub-ext-quality
       name: dsh-plugin-hub/extensions/quality
 
-    - id: hub-ext-trust
-      name: dsh-plugin-hub/extensions/trust
-
     # ══ 发布流水线 publish（3）═══════════════════════════════════════════════
     - id: hub-ext-publish
       name: dsh-plugin-hub/extensions/publish

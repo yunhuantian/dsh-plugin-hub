@@ -91,6 +91,37 @@ export interface MarketIndex {
 export interface CatalogEntry extends MarketEntry {
   /** 出现过的来源标识（按传入顺序）。 */
   sources: string[];
+  /** 被合并掉的重复名字（同一仓库的不同写法）。 */
+  aliases: string[];
+}
+
+/**
+ * 归一化仓库地址，仅用于**判重**，不改变实际用于安装的原始链接。
+ *
+ * 同一个仓库在不同市场里常常写法不同：`git+https://`、`.git` 后缀、末尾斜杠、
+ * `www.` 前缀、大小写主机名。以地址为准去重就必须先把这些噪音抹掉。
+ * 查询串与锚点保留（tarball 链接可能靠它们区分版本），但会让同一 tarball 的
+ * 不同 query 被视为不同条目 —— 这是有意的：宁可少合并，也不要错合并。
+ */
+export function normalizeRepoUrl(url: string): string {
+  let u = url.trim();
+  if (u === '') return '';
+  u = u.replace(/^git\+/i, '');
+  u = u.replace(/^ssh:\/\/git@/i, 'https://');
+  u = u.replace(/^git@([^:]+):/i, 'https://$1/');
+  const hash = u.indexOf('#');
+  if (hash >= 0) u = u.slice(0, hash);
+  const q = u.indexOf('?');
+  const query = q >= 0 ? u.slice(q) : '';
+  if (q >= 0) u = u.slice(0, q);
+  u = u.replace(/\/+$/, '');
+  u = u.replace(/\.git$/i, '');
+  const m = u.match(/^([a-z][a-z0-9+.-]*:\/\/)([^/]+)(.*)$/i);
+  if (m) {
+    const host = m[2].toLowerCase().replace(/^www\./, '');
+    u = m[1].toLowerCase() + host + m[3];
+  }
+  return u + query;
 }
 
 /**
@@ -100,10 +131,12 @@ export interface CatalogEntry extends MarketEntry {
  * 客户端把它们合并后当成一个市场浏览，不需要任何中心服务。
  *
  * 合并规则（确定性，便于复现）：
- * - 按包名去重；
- * - 同一包名出现在多份索引里时，**先传入的来源**决定 url / category / flags；
+ * - **判重以地址为准**：归一化后的仓库地址相同即视为同一份内容（不同名字也算重复）；
+ *   地址不同但包名相同，同样视为重复（同名不可能指两个包）。
+ * - 先传入者决定 url / category / flags / description；
  * - 依赖取并集（去重，保持先出现的顺序）；
- * - `sources` 累积记录所有提供方，便于展示"来自哪些市场"。
+ * - `sources` 累积记录所有提供方；被合并掉的名字记进 `aliases`，便于界面上说明
+ *   「这几个名字是同一个仓库」。
  */
 export interface MarketCatalog {
   readonly count: number;
@@ -115,7 +148,8 @@ export interface MarketCatalog {
 
 export function mergeMarketIndexes(sources: Array<{ source: string; index: MarketIndex }>): MarketCatalog {
   const order: string[] = [];
-  const seen = new Map<string, CatalogEntry>();
+  const byName = new Map<string, CatalogEntry>();
+  const byUrl = new Map<string, CatalogEntry>();
 
   for (const { source, index } of sources) {
     for (let i = 0; i < index.count; i++) {
@@ -125,28 +159,38 @@ export function mergeMarketIndexes(sources: Array<{ source: string; index: Marke
       const description = index.description(i);
       const deps = index.deps(i);
       const flags = index.flags(i);
-      const hit = seen.get(name);
-      if (hit === undefined) {
+      const urlKey = normalizeRepoUrl(url);
+
+      const existing = (urlKey !== '' ? byUrl.get(urlKey) : undefined) ?? byName.get(name);
+      if (existing === undefined) {
+        const entry: CatalogEntry = { name, url, description, category, deps, flags, sources: [source], aliases: [] };
         order.push(name);
-        seen.set(name, { name, url, description, category, deps, flags, sources: [source] });
+        byName.set(name, entry);
+        if (urlKey !== '') byUrl.set(urlKey, entry);
         continue;
       }
-      if (!hit.sources.includes(source)) hit.sources.push(source);
+
+      if (!existing.sources.includes(source)) existing.sources.push(source);
+      // 同一仓库的另一个名字：记进别名（不进列表，避免出现两个看起来一样的条目）。
+      if (existing.name !== name && !existing.aliases.includes(name)) existing.aliases.push(name);
       // 先传入者没给介绍时，允许后面的来源补齐（介绍是展示信息，不是身份）。
-      if (!hit.description && description) hit.description = description;
-      for (const d of deps) if (!hit.deps!.includes(d)) hit.deps!.push(d);
+      if (!existing.description && description) existing.description = description;
+      for (const d of deps) if (!existing.deps!.includes(d)) existing.deps!.push(d);
+      // 让后来的名字/地址也指向同一条，后续重复项继续合并到这里。
+      if (!byName.has(name)) byName.set(name, existing);
+      if (urlKey !== '' && !byUrl.has(urlKey)) byUrl.set(urlKey, existing);
     }
   }
 
   return {
     count: order.length,
-    entry: (i) => seen.get(order[i])!,
+    entry: (i) => byName.get(order[i])!,
     find(prefix, limit = 50) {
       const needle = prefix.toLowerCase();
       const hits: CatalogEntry[] = [];
       for (const name of order) {
         if (!name.toLowerCase().includes(needle)) continue;
-        hits.push(seen.get(name)!);
+        hits.push(byName.get(name)!);
         if (hits.length >= limit) break;
       }
       return hits;

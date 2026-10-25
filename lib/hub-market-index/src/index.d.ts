@@ -81,7 +81,18 @@ export interface MarketIndex {
 export interface CatalogEntry extends MarketEntry {
     /** 出现过的来源标识（按传入顺序）。 */
     sources: string[];
+    /** 被合并掉的重复名字（同一仓库的不同写法）。 */
+    aliases: string[];
 }
+/**
+ * 归一化仓库地址，仅用于**判重**，不改变实际用于安装的原始链接。
+ *
+ * 同一个仓库在不同市场里常常写法不同：`git+https://`、`.git` 后缀、末尾斜杠、
+ * `www.` 前缀、大小写主机名。以地址为准去重就必须先把这些噪音抹掉。
+ * 查询串与锚点保留（tarball 链接可能靠它们区分版本），但会让同一 tarball 的
+ * 不同 query 被视为不同条目 —— 这是有意的：宁可少合并，也不要错合并。
+ */
+export declare function normalizeRepoUrl(url: string): string;
 /**
  * 统一市场：把**任意多份**索引合并成一个视图。
  *
@@ -89,10 +100,12 @@ export interface CatalogEntry extends MarketEntry {
  * 客户端把它们合并后当成一个市场浏览，不需要任何中心服务。
  *
  * 合并规则（确定性，便于复现）：
- * - 按包名去重；
- * - 同一包名出现在多份索引里时，**先传入的来源**决定 url / category / flags；
+ * - **判重以地址为准**：归一化后的仓库地址相同即视为同一份内容（不同名字也算重复）；
+ *   地址不同但包名相同，同样视为重复（同名不可能指两个包）。
+ * - 先传入者决定 url / category / flags / description；
  * - 依赖取并集（去重，保持先出现的顺序）；
- * - `sources` 累积记录所有提供方，便于展示"来自哪些市场"。
+ * - `sources` 累积记录所有提供方；被合并掉的名字记进 `aliases`，便于界面上说明
+ *   「这几个名字是同一个仓库」。
  */
 export interface MarketCatalog {
     readonly count: number;

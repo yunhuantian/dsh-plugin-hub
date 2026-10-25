@@ -79,10 +79,6 @@
       "types": "./lib/hub/src/extensions/quality.d.ts",
       "default": "./lib/hub/src/extensions/quality.js"
     },
-    "./extensions/trust": {
-      "types": "./lib/hub/src/extensions/trust.d.ts",
-      "default": "./lib/hub/src/extensions/trust.js"
-    },
     "./extensions/publish": {
       "types": "./lib/hub/src/extensions/publish.d.ts",
       "default": "./lib/hub/src/extensions/publish.js"
