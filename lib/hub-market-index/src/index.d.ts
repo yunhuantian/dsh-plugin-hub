@@ -32,6 +32,20 @@
  * 读入即用；20 万条也只是线性增长。相比「整份 JSON 进堆」低一个数量级以上。
  */
 import { Buffer } from 'node:buffer';
+/**
+ * 容器类型（写在魔数的第 8 个字节）。
+ *
+ * 列表与整合包**共用同一个容器与编解码器**，只在魔数里带一个类型位：
+ * 这样读取器可以用 8 个字节就判断"这是什么"，不必先解析整份文件；
+ * 而两者又能共享字符串驻留、定长记录等全部实现。
+ *
+ * 为什么必须分开：列表会被商店**当成可选插件**展示，整合包则是一组插件的
+ * 组合声明 —— 混进商店会让用户看到一堆"装不了的条目"。
+ */
+export declare const KIND_LIST = 0;
+export declare const KIND_MODPACK = 1;
+/** 容器类型的中文名，用于报错与界面提示。 */
+export declare function kindLabel(kind: number): string;
 /** 一条市场记录。依赖用包名表示（编码时驻留成字符串下标）。 */
 export interface MarketEntry {
     name: string;
@@ -64,6 +78,8 @@ export declare const FLAG_VERIFIED = 8;
 /** 打开后的索引句柄。字符串按需解码，映射一次后 O(1)。 */
 export interface MarketIndex {
     readonly count: number;
+    /** 容器类型：KIND_LIST 或 KIND_MODPACK。 */
+    readonly kind: number;
     /** 第 i 条记录的名称。 */
     name(i: number): string;
     url(i: number): string;
@@ -157,6 +173,8 @@ export declare function mergeMarketIndexes(sources: Array<{
     index: MarketIndex;
 }>): MarketCatalog;
 /** 编码：字符串驻留（同名只存一次），定长记录按顺序写出。 */
-export declare function encodeMarketIndex(entries: MarketEntry[]): Buffer;
+export declare function encodeMarketIndex(entries: MarketEntry[], options?: {
+    kind?: number;
+}): Buffer;
 /** 打开索引：只校验头并计算各段起点，不解码任何字符串。 */
 export declare function openMarketIndex(buf: Buffer): MarketIndex;

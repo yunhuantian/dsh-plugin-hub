@@ -33,7 +33,28 @@
  */
 import { Buffer } from 'node:buffer';
 
-const MAGIC = Buffer.from('DPMIDX\x02\x00', 'latin1');
+/**
+ * 容器类型（写在魔数的第 8 个字节）。
+ *
+ * 列表与整合包**共用同一个容器与编解码器**，只在魔数里带一个类型位：
+ * 这样读取器可以用 8 个字节就判断"这是什么"，不必先解析整份文件；
+ * 而两者又能共享字符串驻留、定长记录等全部实现。
+ *
+ * 为什么必须分开：列表会被商店**当成可选插件**展示，整合包则是一组插件的
+ * 组合声明 —— 混进商店会让用户看到一堆"装不了的条目"。
+ */
+export const KIND_LIST = 0;
+export const KIND_MODPACK = 1;
+const KIND_LABEL: Record<number, string> = { [KIND_LIST]: '插件列表', [KIND_MODPACK]: '整合包' };
+
+/** 魔数前缀 6 字节 + 版本 1 字节 + 容器类型 1 字节。 */
+const MAGIC_PREFIX = Buffer.from('DPMIDX', 'latin1');
+const MAGIC_VERSION_BYTE = 2;
+
+/** 容器类型的中文名，用于报错与界面提示。 */
+export function kindLabel(kind: number): string {
+  return KIND_LABEL[kind] ?? `未知类型(${kind})`;
+}
 const VERSION = 2;
 const HEADER_BYTES = 40;
 const RECORD_BYTES = 28;
@@ -73,6 +94,8 @@ export const FLAG_VERIFIED = 0x08;
 /** 打开后的索引句柄。字符串按需解码，映射一次后 O(1)。 */
 export interface MarketIndex {
   readonly count: number;
+  /** 容器类型：KIND_LIST 或 KIND_MODPACK。 */
+  readonly kind: number;
   /** 第 i 条记录的名称。 */
   name(i: number): string;
   url(i: number): string;
@@ -277,7 +300,8 @@ export function mergeMarketIndexes(sources: Array<{ source: string; index: Marke
 }
 
 /** 编码：字符串驻留（同名只存一次），定长记录按顺序写出。 */
-export function encodeMarketIndex(entries: MarketEntry[]): Buffer {
+export function encodeMarketIndex(entries: MarketEntry[], options: { kind?: number } = {}): Buffer {
+  const kind = options.kind ?? KIND_LIST;
   const strings: string[] = [];
   const ids = new Map<string, number>();
   const intern = (s: string): number => {
@@ -308,7 +332,9 @@ export function encodeMarketIndex(entries: MarketEntry[]): Buffer {
   const total = HEADER_BYTES + strBytes + depsBytes + records.length * RECORD_BYTES;
   const out = Buffer.allocUnsafe(total);
 
-  MAGIC.copy(out, 0);
+  MAGIC_PREFIX.copy(out, 0);
+  out.writeUInt8(MAGIC_VERSION_BYTE, 6);
+  out.writeUInt8(kind, 7);
   out.writeUInt32LE(VERSION, 8);
   out.writeUInt32LE(records.length, 12);
   out.writeUInt32LE(strings.length, 16);
@@ -339,7 +365,10 @@ export function encodeMarketIndex(entries: MarketEntry[]): Buffer {
 /** 打开索引：只校验头并计算各段起点，不解码任何字符串。 */
 export function openMarketIndex(buf: Buffer): MarketIndex {
   if (buf.length < HEADER_BYTES) throw new Error('索引文件过短');
-  if (!buf.subarray(0, 8).equals(MAGIC)) throw new Error('不是 DPMIDX 索引（magic 不匹配）');
+  if (!buf.subarray(0, 6).equals(MAGIC_PREFIX)) throw new Error('不是 DPMIDX 文件（魔数不匹配）');
+  if (buf.readUInt8(6) !== MAGIC_VERSION_BYTE) throw new Error(`魔数版本不支持: ${buf.readUInt8(6)}`);
+  const kind = buf.readUInt8(7);
+  if (kind !== KIND_LIST && kind !== KIND_MODPACK) throw new Error(`未知的容器类型: ${kind}`);
   const version = buf.readUInt32LE(8);
   if (version !== VERSION) throw new Error(`索引版本不支持: ${version}`);
   const count = buf.readUInt32LE(12);
@@ -379,6 +408,7 @@ export function openMarketIndex(buf: Buffer): MarketIndex {
 
   return {
     count,
+    kind,
     name: (i) => str(field(i, 0)),
     url: (i) => str(field(i, 1)),
     category: (i) => str(field(i, 2)),

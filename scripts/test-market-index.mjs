@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { encodeMarketIndex, isArtifactUrl, mergeMarketIndexes, normalizeRepoUrl, openMarketIndex, repoKeyOf } from '../lib/hub-market-index/src/index.js'
+import { encodeMarketIndex, isArtifactUrl, KIND_LIST, KIND_MODPACK, kindLabel, mergeMarketIndexes, normalizeRepoUrl, openMarketIndex, repoKeyOf } from '../lib/hub-market-index/src/index.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const work = mkdtempSync(join(tmpdir(), 'fmt-'))
@@ -91,6 +91,26 @@ const sameArtifact = mergeMarketIndexes([
 ])
 ok('同一产物地址被两份列表收录 → 合并为一条', sameArtifact.count === 1, `得到 ${sameArtifact.count}`)
 ok('被合并的名字记入 aliases', sameArtifact.entry(0).aliases.includes('same-b'), JSON.stringify(sameArtifact.entry(0).aliases))
+
+console.log('\n--- 容器类型：列表 vs 整合包（同格式，靠魔数第 8 字节区分）---')
+const sample = [{ name: 'dsh-x', url: 'https://e.com/x.tgz' }]
+ok('默认是列表', openMarketIndex(encodeMarketIndex(sample)).kind === KIND_LIST)
+ok('可以写成整合包', openMarketIndex(encodeMarketIndex(sample, { kind: KIND_MODPACK })).kind === KIND_MODPACK)
+ok('类型名可读', kindLabel(KIND_LIST) === '插件列表' && kindLabel(KIND_MODPACK) === '整合包')
+{
+  const bad = Buffer.from(encodeMarketIndex(sample))
+  bad.writeUInt8(9, 7)                                  // 伪造一个未知类型
+  let threw = false
+  try { openMarketIndex(bad) } catch { threw = true }
+  ok('未知容器类型被拒绝', threw)
+}
+{
+  const bad = Buffer.from(encodeMarketIndex(sample))
+  bad.writeUInt8(99, 6)                                 // 伪造魔数版本
+  let threw = false
+  try { openMarketIndex(bad) } catch { threw = true }
+  ok('未知魔数版本被拒绝', threw)
+}
 
 rmSync(work, { recursive: true, force: true })
 console.log(`\n${fails === 0 ? '全部通过' : `${fails} 条失败`}`)
