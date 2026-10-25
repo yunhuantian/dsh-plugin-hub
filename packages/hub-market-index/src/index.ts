@@ -87,12 +87,64 @@ export interface MarketIndex {
   toArray(): MarketEntry[];
 }
 
+/**
+ * 从下载/安装链接推导**仓库身份键**。
+ *
+ * 为什么不用 npm 包名当主键：实测 279 个插件里只有 98 个（35%）在 npm 上有活动，
+ * 而**全部 279 个都有仓库地址**。仓库地址才是覆盖率 100% 的那个标识。
+ *
+ * 产出三类键：
+ * - `npm:<包名>` —— npm tarball（注意 URL 里带版本，必须剥掉版本才算身份）
+ * - `repo:<host>/<owner>/<repo>` —— GitHub / GitLab / Gitee
+ * - `''` —— 推导不出来（镜像、对象存储、私有地址），调用方应回退到归一化 URL
+ *
+ * ⚠️ 这个键**只用于"识别同一仓库"**，不用于静默合并：一个 monorepo 可以合法地
+ * 发布多个插件（同 repo、不同名），按仓库合并会把它们错并成一个。
+ */
+export function repoKeyOf(url: string): string {
+  const u = normalizeRepoUrl(url);
+  if (u === '') return '';
+
+  // npm tarball：https://registry.npmjs.org/<name>/-/<name>-<ver>.tgz
+  // 也兼容镜像前缀，只要路径里有 /-/ 与 .tgz
+  const npm = u.match(/^(?:https?:\/\/[^/]+)\/(.+?)\/-\/(?:.+?)\.tgz$/i);
+  if (npm) return `npm:${npm[1].toLowerCase()}`;
+
+  const m = u.match(/^https?:\/\/([^/]+)\/([^/]+)\/([^/]+)(?:\/|$)/i);
+  if (!m) return '';
+  const host = m[1].toLowerCase().replace(/^www\./, '');
+  const owner = m[2];
+  const repo = m[3].replace(/\.git$/i, '');
+  if (!/^(github\.com|gitlab\.com|gitee\.com|bitbucket\.org)$/.test(host)) return '';
+  if (repo === '' || repo === '-') return '';
+  return `repo:${host}/${owner}/${repo}`.toLowerCase();
+}
+
+/**
+ * 这个地址是指向**具体产物**，还是只指向**仓库本身**？
+ *
+ * 只有指向产物的地址才能拿来做「同一条目」的判据：同一个 tarball 被两份列表收录，
+ * 就是同一条。而仓库根地址（`github.com/o/r`）标识的是**仓库**，一个 monorepo 可以
+ * 用它发布多个插件 —— 拿它判重会把不同插件错并成一个。
+ */
+export function isArtifactUrl(url: string): boolean {
+  const u = normalizeRepoUrl(url);
+  if (u === '') return false;
+  const path = u.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]+/i, '');
+  if (/\/archive\//i.test(path)) return true;
+  if (/\/releases\/download\//i.test(path)) return true;
+  if (/\/-\//.test(path) && /\.tgz$/i.test(path)) return true;
+  return /\.(tgz|tar\.gz|zip|tar)$/i.test(path);
+}
+
 /** 一条统一市场记录：合并了所有来源之后的视图。 */
 export interface CatalogEntry extends MarketEntry {
   /** 出现过的来源标识（按传入顺序）。 */
   sources: string[];
   /** 被合并掉的重复名字（同一仓库的不同写法）。 */
   aliases: string[];
+  /** 推导出的仓库身份键（可为空串）。仅用于识别，不参与合并。 */
+  repoKey: string;
 }
 
 /**
@@ -144,6 +196,13 @@ export interface MarketCatalog {
   find(prefix: string, limit?: number): CatalogEntry[];
   /** 每份来源的条目数，便于诊断。 */
   stats(): Array<{ source: string; entries: number }>;
+  /**
+   * 同一仓库下有多条记录的分组（按仓库键归并）。
+   *
+   * **这不是"重复"**：一个 monorepo 可以合法发布多个插件。所以这里只**报告**
+   * 分组，交给界面提示"这些条目来自同一个仓库"，而不是自动合并掉。
+   */
+  repoGroups(): Array<{ repoKey: string; names: string[] }>;
 }
 
 export function mergeMarketIndexes(sources: Array<{ source: string; index: MarketIndex }>): MarketCatalog {
@@ -159,11 +218,15 @@ export function mergeMarketIndexes(sources: Array<{ source: string; index: Marke
       const description = index.description(i);
       const deps = index.deps(i);
       const flags = index.flags(i);
-      const urlKey = normalizeRepoUrl(url);
+      // 只有「产物地址」参与 URL 判重；仓库根地址留给 repoGroups 报告，不合并。
+      const urlKey = isArtifactUrl(url) ? normalizeRepoUrl(url) : '';
 
       const existing = (urlKey !== '' ? byUrl.get(urlKey) : undefined) ?? byName.get(name);
       if (existing === undefined) {
-        const entry: CatalogEntry = { name, url, description, category, deps, flags, sources: [source], aliases: [] };
+        const entry: CatalogEntry = {
+          name, url, description, category, deps, flags,
+          sources: [source], aliases: [], repoKey: repoKeyOf(url),
+        };
         order.push(name);
         byName.set(name, entry);
         if (urlKey !== '') byUrl.set(urlKey, entry);
@@ -196,6 +259,20 @@ export function mergeMarketIndexes(sources: Array<{ source: string; index: Marke
       return hits;
     },
     stats: () => sources.map(({ source, index }) => ({ source, entries: index.count })),
+    repoGroups() {
+      const byRepo = new Map<string, string[]>();
+      for (const name of order) {
+        const entry = byName.get(name)!;
+        if (entry.repoKey === '') continue;
+        const bucket = byRepo.get(entry.repoKey);
+        if (bucket === undefined) byRepo.set(entry.repoKey, [entry.name]);
+        else bucket.push(entry.name);
+      }
+      return [...byRepo.entries()]
+        .filter(([, names]) => names.length > 1)
+        .map(([repoKey, names]) => ({ repoKey, names: names.sort() }))
+        .sort((a, b) => a.repoKey.localeCompare(b.repoKey));
+    },
   };
 }
 

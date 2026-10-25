@@ -77,12 +77,37 @@ export interface MarketIndex {
     /** 整表转成普通对象数组（调试/导出用，会分配全部对象）。 */
     toArray(): MarketEntry[];
 }
+/**
+ * 从下载/安装链接推导**仓库身份键**。
+ *
+ * 为什么不用 npm 包名当主键：实测 279 个插件里只有 98 个（35%）在 npm 上有活动，
+ * 而**全部 279 个都有仓库地址**。仓库地址才是覆盖率 100% 的那个标识。
+ *
+ * 产出三类键：
+ * - `npm:<包名>` —— npm tarball（注意 URL 里带版本，必须剥掉版本才算身份）
+ * - `repo:<host>/<owner>/<repo>` —— GitHub / GitLab / Gitee
+ * - `''` —— 推导不出来（镜像、对象存储、私有地址），调用方应回退到归一化 URL
+ *
+ * ⚠️ 这个键**只用于"识别同一仓库"**，不用于静默合并：一个 monorepo 可以合法地
+ * 发布多个插件（同 repo、不同名），按仓库合并会把它们错并成一个。
+ */
+export declare function repoKeyOf(url: string): string;
+/**
+ * 这个地址是指向**具体产物**，还是只指向**仓库本身**？
+ *
+ * 只有指向产物的地址才能拿来做「同一条目」的判据：同一个 tarball 被两份列表收录，
+ * 就是同一条。而仓库根地址（`github.com/o/r`）标识的是**仓库**，一个 monorepo 可以
+ * 用它发布多个插件 —— 拿它判重会把不同插件错并成一个。
+ */
+export declare function isArtifactUrl(url: string): boolean;
 /** 一条统一市场记录：合并了所有来源之后的视图。 */
 export interface CatalogEntry extends MarketEntry {
     /** 出现过的来源标识（按传入顺序）。 */
     sources: string[];
     /** 被合并掉的重复名字（同一仓库的不同写法）。 */
     aliases: string[];
+    /** 推导出的仓库身份键（可为空串）。仅用于识别，不参与合并。 */
+    repoKey: string;
 }
 /**
  * 归一化仓库地址，仅用于**判重**，不改变实际用于安装的原始链接。
@@ -115,6 +140,16 @@ export interface MarketCatalog {
     stats(): Array<{
         source: string;
         entries: number;
+    }>;
+    /**
+     * 同一仓库下有多条记录的分组（按仓库键归并）。
+     *
+     * **这不是"重复"**：一个 monorepo 可以合法发布多个插件。所以这里只**报告**
+     * 分组，交给界面提示"这些条目来自同一个仓库"，而不是自动合并掉。
+     */
+    repoGroups(): Array<{
+        repoKey: string;
+        names: string[];
     }>;
 }
 export declare function mergeMarketIndexes(sources: Array<{
