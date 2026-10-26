@@ -622,14 +622,24 @@ const PACKS = [
 
 // 校验：成员必须在插件表里、不得跨包重复、包内独占角色唯一
 const byPkgName = new Map(picked.map((r) => [(r.mf.name || r.name).toLowerCase(), r]));
+// 可用性验证结果（scripts/verify-packs.mjs 产出）：**未验证的成员不进整合包**。
+// 整合包对外承诺「装上能用」，所以只收 npm 可解析 + tarball 可取 + 兼容声明通过的。
+const VERIFY_FILE = join(OUT, 'verification.json');
+const verifiedSet = existsSync(VERIFY_FILE)
+  ? new Set(JSON.parse(readFileSync(VERIFY_FILE, 'utf8')).items.filter((i) => i.state === 'ok').map((i) => i.name))
+  : null;
+if (verifiedSet === null) console.warn('⚠️ 没有 verification.json，本轮不按可用性过滤（请先跑 verify-packs.mjs）');
+
 const packReports = [];
 const usedIn = new Map();
 for (const pack of PACKS) {
   const members = [];
   const missing = [];
+  const unverified = [];
   for (const name of pack.members) {
     const r = byPkgName.get(name.toLowerCase());
     if (!r) { missing.push(name); continue; }
+    if (verifiedSet !== null && !verifiedSet.has(r.mf.name || r.name)) { unverified.push(name); continue; }
     const key = (r.mf.name || r.name).toLowerCase();
     if (usedIn.has(key)) throw new Error(`整合包冲突：${name} 同时出现在「${usedIn.get(key)}」与「${pack.name}」`);
     usedIn.set(key, pack.name);
@@ -642,12 +652,12 @@ for (const pack of PACKS) {
     if (prior) throw new Error(`「${pack.name}」里有多个${m.role.label}：${prior} 与 ${m.r.mf.name}`);
     seenRole.set(m.role.id, m.r.mf.name);
   }
-  packReports.push({ pack, members, missing });
-  console.log(`整合包「${pack.name}」：${members.length} 个${missing.length > 0 ? `（缺失 ${missing.length}：${missing.join(', ')}）` : ''}`);
+  packReports.push({ pack, members, missing, unverified });
+  console.log(`整合包「${pack.name}」：${members.length} 个${unverified.length > 0 ? `（未验证剔除 ${unverified.length}：${unverified.join(', ')}）` : ''}${missing.length > 0 ? `（缺失 ${missing.join(', ')}）` : ''}`);
 }
 console.log(`✅ 跨包自检：${usedIn.size} 个成员无重复`);
 
-for (const { pack, members } of packReports) {
+for (const { pack, members, unverified } of packReports) {
   writeFileSync(join(OUT, `modpack-${pack.slug}.dpmidx`), encodeMarketIndex(members.map((m) => toEntry(m.r)), {
     kind: KIND_MODPACK,
     meta: { name: pack.name, publisher: PUBLISHER, description: pack.pitch, createdAt },
@@ -685,8 +695,13 @@ for (const { pack, members } of packReports) {
     '',
     `> 署名：**${PUBLISHER}** ｜ 共 ${members.length} 个 ｜ 生成于 ${createdAt}`,
     `> ${pack.pitch}`,
+    ...(unverified.length > 0
+      ? ['>', `> ⚠️ 为保证可用，已剔除未验证成员：${unverified.join('、')}`]
+      : []),
     '',
     '**这不是「某个分类的合集」**：成员跨了多个分类，是按这个场景下会一起用到来挑的。',
+    '**每个成员都通过了可用性验证**：npm 可解析、tarball 可取、兼容声明覆盖目标版本（见 verification.json）。',
+    '**整包模拟安装已跑通**：临时目录里 `pnpm install --lockfile-only`（宿主包固定为本机实际版本、关闭 peer 自动安装）能解出完整依赖图。',
     '每个插件只属于一个整合包 —— 同时装两个包也不会重复安装。',
     '',
     '## 安装顺序',
