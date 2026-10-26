@@ -175,6 +175,22 @@ const listSourceMutation = z.object({
   warnings: z.array(z.string()).readonly(),
 }).readonly();
 
+/** 资源清单（sources.json）一次导入多份来源的结果。 */
+export const sourceBundleResult = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+  imported: z.array(z.object({
+    id: z.string(),
+    label: z.string(),
+    kind: z.number(),
+    entries: z.number(),
+  })).readonly(),
+  failed: z.array(z.object({
+    label: z.string(),
+    message: z.string(),
+  })).readonly(),
+}).readonly();
+
 export const installReceipt = z.object({
   ok: z.boolean(),
   message: z.string(),
@@ -396,6 +412,13 @@ export const descriptors = [
   /** 自动爬取一个 GitHub 用户 / 组织 / 仓库 / topic。 */
   descriptor('addCrawlSource', [parameter('spec', z.string()), parameter('label', z.string().nullish())], listSourceMutation),
   descriptor('removeListSource', [parameter('id', z.string())], opResult),
+  /** 重新下载一份远程来源并原地覆盖（数据与代码分离后，作者更新靠这一步生效）。 */
+  descriptor('refreshListSource', [parameter('id', z.string())], listSourceMutation),
+  /**
+   * 按资源清单（sources.json）一次注册多份来源。
+   * 数据仓库只需要给这一个地址，以后新增列表/整合包不用改 hub。
+   */
+  descriptor('importSourceBundle', [parameter('url', z.string())], sourceBundleResult),
   /** 认证一份列表（逐插件记录当前版本，认证即版本级事实）。 */
   descriptor('certifyList', [parameter('id', z.string())], z.object({
     ok: z.boolean(),

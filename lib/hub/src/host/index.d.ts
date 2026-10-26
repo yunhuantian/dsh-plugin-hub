@@ -153,6 +153,26 @@ export declare class PluginStoreService extends TypertRemoteService {
     addCrawlSource(spec: string, label?: string): Promise<Record<string, unknown>>;
     removeListSource(id: string): Promise<Record<string, unknown>>;
     /**
+     * 刷新一份远程来源：重新下载、原地覆盖，来源 id 不变。
+     *
+     * 数据与代码分离之后必须有这一步 —— 否则「导入」只是拍一张快照，
+     * 作者更新了列表或整合包，用户手里还是导入那天的旧副本，
+     * 只能靠 hub 发新版本才能让数据变，等于没分开。
+     *
+     * 本地上传 / 粘贴得来的来源没有地址，直接说明原因，不做猜测。
+     */
+    refreshListSource(id: string): Promise<Record<string, unknown>>;
+    /**
+     * 按资源清单（`sources.json`）一次注册多份来源。
+     *
+     * 数据单独放在一个仓库时，最省事的用法是给对方**一个**地址：
+     * 清单里的 `file` 按清单自身位置解析成绝对地址，逐份走 addListSource。
+     * 以后新增列表或整合包只改清单，hub 不用发版。
+     *
+     * 单份失败不影响其余 —— 返回里分开列，不吞错也不整体回滚。
+     */
+    importSourceBundle(url: string): Promise<Record<string, unknown>>;
+    /**
      * 认证一份列表：逐个插件记录「当前版本」。
      *
      * 认证是版本级事实：插件升级后版本对不上，UI 显示「有过认证」而不是「已认证」。

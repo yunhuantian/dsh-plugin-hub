@@ -599,6 +599,9 @@
 .dps-kv code { background: var(--dsw-alias-interactive-bg-hover); border-radius: 6px; padding: 1px 5px; font-size: 12px; }
 .dps-modpack-install { align-items: center; gap: 8px; display: inline-flex; flex-wrap: wrap; }
 .dps-modpack-status { color: var(--dsw-alias-label-secondary); max-width: 460px; font-size: 12px; }
+/* 刷新结果跟按钮同一行，过长时省略而不是把来源条挤成两行 */
+.dps-source-refresh { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.dps-source-refresh .dps-modpack-status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
 .dps-modpack-intro { margin: 6px 0 2px; padding: 8px 12px; border: 1px solid var(--dsw-alias-border-secondary); border-radius: 8px; background: var(--dsw-alias-interactive-bg-hover); max-width: 720px; }
 .dps-modpack-publisher { display: inline-block; font-size: 12px; color: var(--dsw-alias-label-secondary); margin-bottom: 2px; }
 .dps-modpack-desc { margin: 0 0 2px; font-size: 13px; color: var(--dsw-alias-label-primary); }

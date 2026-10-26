@@ -1164,6 +1164,121 @@ export class PluginStoreService extends TypertRemoteService {
   }
 
   /**
+   * 刷新一份远程来源：重新下载、原地覆盖，来源 id 不变。
+   *
+   * 数据与代码分离之后必须有这一步 —— 否则「导入」只是拍一张快照，
+   * 作者更新了列表或整合包，用户手里还是导入那天的旧副本，
+   * 只能靠 hub 发新版本才能让数据变，等于没分开。
+   *
+   * 本地上传 / 粘贴得来的来源没有地址，直接说明原因，不做猜测。
+   */
+  @Remote('refreshListSource')
+  async refreshListSource(id: string): Promise<Record<string, unknown>> {
+    const throttled = this.throttle('refresh-list', 20);
+    if (throttled) return { ok: false, message: throttled, detail: null, row: null, warnings: [] };
+    const source = this.db.getListSource(String(id));
+    if (!source) return { ok: false, message: '来源不存在', detail: null, row: null, warnings: [] };
+    if (source.url === '') {
+      return {
+        ok: false,
+        message: '这份来源来自本地文件，没有可刷新的地址；重新导入一次即可替换',
+        detail: null,
+        row: null,
+        warnings: [],
+      };
+    }
+    try {
+      const { row, warnings } = await addListSource(this.db, resolveDshHome(), {
+        url: source.url,
+        expect: source.kind,
+        label: source.label,
+        provenance: source.provenance,
+      });
+      const before = source.entries;
+      const after = row.entries;
+      const message = before === after
+        ? `「${row.label}」已是最新，${after} 条`
+        : `「${row.label}」已更新：${before} → ${after} 条`;
+      this.appendAudit('list_refresh', row.label, 'ok', `${before} → ${after} 条（${row.id}）`, 'ui');
+      return { ok: true, message, detail: warnings.length > 0 ? warnings.join('\n') : null, row, warnings };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.appendAudit('list_refresh', source.label, 'failed', message, 'ui');
+      return { ok: false, message, detail: null, row: null, warnings: [] };
+    }
+  }
+
+  /**
+   * 按资源清单（`sources.json`）一次注册多份来源。
+   *
+   * 数据单独放在一个仓库时，最省事的用法是给对方**一个**地址：
+   * 清单里的 `file` 按清单自身位置解析成绝对地址，逐份走 addListSource。
+   * 以后新增列表或整合包只改清单，hub 不用发版。
+   *
+   * 单份失败不影响其余 —— 返回里分开列，不吞错也不整体回滚。
+   */
+  @Remote('importSourceBundle')
+  async importSourceBundle(url: string): Promise<Record<string, unknown>> {
+    const empty = { imported: [], failed: [] };
+    const throttled = this.throttle('add-list', 20);
+    if (throttled) return { ok: false, message: throttled, ...empty };
+    const target = String(url).trim();
+    if (!/^https?:\/\//i.test(target)) {
+      return { ok: false, message: '资源清单需要一个 http(s) 地址，本地文件请直接导入', ...empty };
+    }
+    let list: Record<string, unknown>[];
+    try {
+      const res = await fetch(target, {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(30_000),
+        headers: { 'User-Agent': 'dsh-plugin-hub' },
+      });
+      if (!res.ok) return { ok: false, message: `下载失败：HTTP ${res.status} ${res.statusText}`, ...empty };
+      const obj = JSON.parse(await res.text()) as Record<string, unknown>;
+      list = Array.isArray(obj.sources) ? (obj.sources as Record<string, unknown>[]) : [];
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, message: `读取资源清单失败：${message}`, ...empty };
+    }
+    if (list.length === 0) {
+      return { ok: false, message: '这份文件里没有 sources 数组', ...empty };
+    }
+
+    const imported: Record<string, unknown>[] = [];
+    const failed: Record<string, unknown>[] = [];
+    // 上限只是防呆：一份清单被误填成几千条时，不至于卡住整个商店。
+    for (const item of list.slice(0, 50)) {
+      const label = typeof item.name === 'string' ? item.name.trim() : '';
+      const file = typeof item.file === 'string' ? item.file.trim() : '';
+      if (file === '') {
+        failed.push({ label: label || '(未命名)', message: '缺少 file 字段' });
+        continue;
+      }
+      let fileUrl = file;
+      try {
+        fileUrl = new URL(file, target).href;
+      } catch { /* 不是合法相对路径就按原样交给 addListSource 报错 */ }
+      try {
+        const { row } = await addListSource(this.db, resolveDshHome(), {
+          url: fileUrl,
+          expect: Number(item.kind) === 1 ? 1 : 0,
+          label: label === '' ? undefined : label,
+        });
+        imported.push({ id: row.id, label: row.label, kind: row.kind, entries: row.entries });
+      } catch (error) {
+        failed.push({ label: label || file, message: error instanceof Error ? error.message : String(error) });
+      }
+    }
+
+    const ok = imported.length > 0;
+    const message = failed.length === 0
+      ? `已从资源清单导入 ${imported.length} 份`
+      : `导入 ${imported.length} 份，失败 ${failed.length} 份`;
+    this.appendAudit('list_bundle', target, ok ? 'ok' : 'failed', message, 'ui');
+    return { ok, message, imported, failed };
+  }
+
+  /**
    * 认证一份列表：逐个插件记录「当前版本」。
    *
    * 认证是版本级事实：插件升级后版本对不上，UI 显示「有过认证」而不是「已认证」。

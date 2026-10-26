@@ -143,6 +143,14 @@ export interface ListMutation {
   warnings: string[];
 }
 
+/** 资源清单（sources.json）一次导入多份来源的结果。 */
+export interface SourceBundleResult {
+  ok: boolean;
+  message: string;
+  imported: { id: string; label: string; kind: number; entries: number }[];
+  failed: { label: string; message: string }[];
+}
+
 export interface SyncStatus {
   state: 'idle' | 'syncing' | 'error';
   lastSyncAt: string | null;
@@ -359,6 +367,10 @@ export interface RemoteApi {
   /** 自动爬取一个 GitHub 用户 / 组织 / 仓库 / topic。 */
   addCrawlSource(spec: string, label?: string | null): Promise<ListMutation>;
   removeListSource(id: string): Promise<OpResult>;
+  /** 重新下载一份远程来源并原地覆盖；本地文件来源没有地址，会返回失败原因。 */
+  refreshListSource(id: string): Promise<ListMutation>;
+  /** 按资源清单（sources.json）一次注册多份来源。 */
+  importSourceBundle(url: string): Promise<SourceBundleResult>;
   listSourceEntries(id: string, query?: string | null, limit?: number | null, offset?: number | null): Promise<{ source: ListSource; total: number; items: ListEntry[] }>;
   installFromSource(sourceId: string, name: string, actor: string): Promise<InstallReceipt>;
   /** 一键安装整合包：后台串行装，返回启动结果。 */
@@ -517,6 +529,8 @@ export function makeApi(remote: Record<string, any>): RemoteApi {
     addListSource: async (input) => unwrap(await r.addListSource(input)),
     addCrawlSource: async (spec, label) => unwrap(await r.addCrawlSource(spec, label)),
     removeListSource: async (id) => unwrap(await r.removeListSource(id)),
+    refreshListSource: async (id) => unwrap(await r.refreshListSource(id)),
+    importSourceBundle: async (url) => unwrap(await r.importSourceBundle(url)),
     listSourceEntries: async (id, query, limit, offset) => unwrap(await r.listSourceEntries(id, query, limit, offset)),
     installFromSource: async (sourceId, name, actor) => unwrap(await r.installFromSource(sourceId, name, actor)),
     installModpack: async (sourceId, actor) => unwrap(await r.installModpack(sourceId, actor)),

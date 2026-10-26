@@ -261,6 +261,21 @@ export declare const listEntry: z.ZodReadonly<z.ZodObject<{
     certVersion: z.ZodNullable<z.ZodString>;
     currentVersion: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>>;
+/** 资源清单（sources.json）一次导入多份来源的结果。 */
+export declare const sourceBundleResult: z.ZodReadonly<z.ZodObject<{
+    ok: z.ZodBoolean;
+    message: z.ZodString;
+    imported: z.ZodReadonly<z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        label: z.ZodString;
+        kind: z.ZodNumber;
+        entries: z.ZodNumber;
+    }, z.core.$strip>>>;
+    failed: z.ZodReadonly<z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        message: z.ZodString;
+    }, z.core.$strip>>>;
+}, z.core.$strip>>;
 export declare const installReceipt: z.ZodReadonly<z.ZodObject<{
     ok: z.ZodBoolean;
     message: z.ZodString;

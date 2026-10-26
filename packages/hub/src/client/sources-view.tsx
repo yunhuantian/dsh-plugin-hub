@@ -396,9 +396,10 @@ function AddPanel({ api, t, expect, onDone }: {
   expect: number;
   onDone: () => void;
 }): ReactNode {
-  const [mode, setMode] = useState<'list' | 'crawl'>(expect === 1 ? 'list' : 'list');
+  const [mode, setMode] = useState<'list' | 'crawl' | 'bundle'>('list');
   const [url, setUrl] = useState('');
   const [crawl, setCrawl] = useState('');
+  const [bundleUrl, setBundleUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -444,16 +445,55 @@ function AddPanel({ api, t, expect, onDone }: {
     } finally { setBusy(false); }
   };
 
+  /**
+   * 资源清单（sources.json）：一次注册多份来源。
+   * 数据仓库只需要暴露这一个地址 —— 以后它新增列表或整合包，用户不用重新导入。
+   */
+  const submitBundle = async () => {
+    if (bundleUrl.trim() === '') return;
+    setBusy(true); setError(null); setMessage(null);
+    try {
+      const r = await api.importSourceBundle(bundleUrl.trim());
+      const failedText = r.failed.map((f) => `${f.label}（${f.message}）`).join('；');
+      if (!r.ok) {
+        setError(failedText === '' ? r.message : `${r.message}：${failedText}`);
+      } else {
+        setMessage(`${t('src.importOk')}：${r.message}${failedText === '' ? '' : `；${t('src.bundleFailed')}：${failedText}`}`);
+        setBundleUrl('');
+        onDone();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="dps-section dps-addpanel">
-      {expect === 0 && (
-        <div className="dps-chips">
-          <button type="button" className={`dps-chip${mode === 'list' ? ' active' : ''}`} onClick={() => setMode('list')}>{t('src.addList')}</button>
+      <div className="dps-chips">
+        <button type="button" className={`dps-chip${mode === 'list' ? ' active' : ''}`} onClick={() => setMode('list')}>{expect === 1 ? t('src.addModpack') : t('src.addList')}</button>
+        {expect === 0 && (
           <button type="button" className={`dps-chip${mode === 'crawl' ? ' active' : ''}`} onClick={() => setMode('crawl')}>{t('src.addCrawl')}</button>
-        </div>
-      )}
+        )}
+        <button type="button" className={`dps-chip${mode === 'bundle' ? ' active' : ''}`} onClick={() => setMode('bundle')}>{t('src.addBundle')}</button>
+      </div>
 
-      {mode === 'list' ? (
+      {mode === 'bundle' ? (
+        <>
+          <div className="dps-field">
+            <input
+              className="dps-input"
+              value={bundleUrl}
+              placeholder={t('src.bundlePlaceholder')}
+              onChange={(e) => setBundleUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void submitBundle(); }}
+            />
+            <button type="button" className="dps-btn dps-btn-primary dps-btn-sm" disabled={busy} onClick={() => void submitBundle()}>
+              {t('src.addBundle')}
+            </button>
+          </div>
+          <p className="dps-hint">{t('src.bundleHint')}</p>
+        </>
+      ) : mode === 'list' ? (
         <>
           <div className="dps-field">
             <input
@@ -537,9 +577,12 @@ export function AutoZone({ api, t, onChanged, onOpenPlugin, renderBuiltin }: Com
         onAdd={() => setAdding((v) => !v)}
         t={t}
         extra={current !== null ? (
-          <button type="button" className="dps-chip dps-chip-danger" onClick={() => void remove()}>
-            <IconTrash size={13} /> {t('src.remove')}
-          </button>
+          <>
+            <RefreshSourceButton api={api} source={current} t={t} onDone={async () => { await reload(); onChanged(); }} />
+            <button type="button" className="dps-chip dps-chip-danger" onClick={() => void remove()}>
+              <IconTrash size={13} /> {t('src.remove')}
+            </button>
+          </>
         ) : undefined}
       />
       {error !== null && <div className="dps-error" role="alert"><IconWarning size={16} /><span className="dps-error-text">{error}</span></div>}
@@ -650,6 +693,50 @@ function ModpackInstallButton({ api, source, t, onChanged }: { api: RemoteApi; s
   );
 }
 
+/**
+ * 刷新一份远程来源。
+ *
+ * 数据放在独立仓库之后，「导入」只是拍快照；作者更新了列表或整合包，
+ * 用户点这里重拉一次就能拿到新内容，不需要 hub 发版本。
+ * 本地文件/粘贴来的来源没有地址，不显示这个按钮（点也只会失败）。
+ */
+function RefreshSourceButton({ api, source, t, onDone }: {
+  api: RemoteApi; source: ListSource; t: (key: string) => string; onDone: () => void | Promise<void>;
+}): ReactNode {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  if (source.url === '') return null;
+
+  const run = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await api.refreshListSource(source.id);
+      setMsg(r.message);
+      if (r.ok) await onDone();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span className="dps-source-refresh">
+      <button
+        type="button"
+        className="dps-chip"
+        disabled={busy}
+        onClick={() => void run()}
+        title={t('src.refreshHint')}
+      >
+        <IconRefresh size={13} /> {busy ? t('src.refreshing') : t('src.refresh')}
+      </button>
+      {msg !== null && <span className="dps-modpack-status" title={msg}>{msg}</span>}
+    </span>
+  );
+}
+
 export function ModpackZone({ api, t, onChanged, onOpenPlugin }: CommonProps): ReactNode {
   const [sources, setSources] = useState<ListSource[]>([]);
   const [selected, setSelected] = useState('');
@@ -701,6 +788,7 @@ export function ModpackZone({ api, t, onChanged, onOpenPlugin }: CommonProps): R
         extra={current !== null ? (
           <>
             <ModpackInstallButton api={api} source={current} t={t} onChanged={onChanged} />
+            <RefreshSourceButton api={api} source={current} t={t} onDone={async () => { await reload(); onChanged(); }} />
             <button type="button" className="dps-chip dps-chip-danger" onClick={() => void remove()}>
               <IconTrash size={13} /> {t('src.remove')}
             </button>
