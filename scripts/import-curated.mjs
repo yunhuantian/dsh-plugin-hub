@@ -7,7 +7,7 @@
  * 认证不是「给文件盖个章」，而是**在本地注册表里逐插件记录版本**：
  * 以后插件升级、版本对不上时，界面显示「有过认证」，既不撤销也不冒充当前版本。
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,11 +29,13 @@ const PUBLISHER = '云幻天';
 const db = new StoreDB(HOME);
 const now = new Date().toISOString();
 
+// 插件表固定；整合包按目录里实际存在的文件收集（改名不用改脚本）。
 const files = [
   { file: 'plugin-table.dpmidx', expect: KIND_LIST, certified: true },
-  { file: 'modpack-starter.dpmidx', expect: KIND_MODPACK, certified: false },
-  { file: 'modpack-devkit.dpmidx', expect: KIND_MODPACK, certified: false },
-  { file: 'modpack-studio.dpmidx', expect: KIND_MODPACK, certified: false },
+  ...(existsSync(DIR) ? readdirSync(DIR) : [])
+    .filter((f) => /^modpack-.+\.dpmidx$/.test(f))
+    .sort()
+    .map((f) => ({ file: f, expect: KIND_MODPACK, certified: false })),
 ];
 
 const rows = [];

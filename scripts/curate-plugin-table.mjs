@@ -512,30 +512,184 @@ writeFileSync(join(OUT, 'plugin-table.md'), md.join('\n'));
 // ---------------------------------------------------------------------------
 // 10. 三个整合包
 // ---------------------------------------------------------------------------
-const THEMES = [
-  { slug: 'starter', name: '懒人开箱', description: '装上就能用的那批：办公、用量、搜索、记忆、通知。', match: (r) => ['docs', 'usage', 'memory', 'notify', 'tool'].includes(r.category) },
-  { slug: 'devkit', name: '开发者工作台', description: '写代码、调插件、查问题：调试、构建、插件管理。', match: (r) => ['dev', 'agent', 'hub'].includes(r.category) },
-  { slug: 'studio', name: '界面与创作', description: '把界面换掉、把内容做出来：皮肤、视觉、文档创作、对话。', match: (r) => ['ui', 'vision', 'chat', 'docs'].includes(r.category) },
+// ---------------------------------------------------------------------------
+// 整合包：按「场景」选，不按分类切
+// ---------------------------------------------------------------------------
+// 同一个整合包里，这些角色只能有一个 —— 两个皮肤、两个模型源、两个记忆后端
+// 会互相覆盖，装一起就是坏的。表里可以都列，包里必须挑一个。
+const EXCLUSIVE_ROLES = [
+  { id: 'provider', label: '模型来源', re: /免费模型|free model|free-model|模型提供|模型接入|model provider|api relay|api 中转|模型转接|模型路由|渠道模型|模型池|model pool|model router|接入.*模型/i },
+  { id: 'memory', label: '记忆后端', re: /记忆|memory|knowledge base|知识库/i },
+  { id: 'voice', label: '语音朗读', re: /朗读|tts|语音合成|voice/i },
+  { id: 'permission', label: '权限策略', re: /权限|permission/i },
+  { id: 'skin', label: '界面皮肤', re: /皮肤|主题包|壁纸|换肤|skin|theme|wallpaper/i },
 ];
-for (const theme of THEMES) {
-  const members = picked.filter(theme.match).slice(0, 30);
-  if (members.length === 0) continue;
-  writeFileSync(join(OUT, `modpack-${theme.slug}.dpmidx`), encodeMarketIndex(members.map(toEntry), {
+const EXCLUSIVE_ORDER = Object.fromEntries(EXCLUSIVE_ROLES.map((r, i) => [r.id, i]));
+
+function roleOf(r) {
+  const text = `${r.mf.name} ${r.mf.description} ${r.description} ${r.mf.keywords.join(' ')}`;
+  // 审计/统计类天然会提到「中转」「记忆」，但它们不是那个角色本身。
+  if (/audit|审计|统计|stats|ledger|meter/i.test(text)) return null;
+  // 「状态栏皮肤」是在状态栏上做花样，不是整体换肤，不会和主题互相覆盖。
+  if (/status[- ]?line|status-label|status rotator|状态栏/i.test(text)) return null;
+  // 上下文压缩会提到「模型」，但它不是模型来源。
+  if (/context[- ]?compression|上下文压缩|压缩上下文/i.test(text)) return null;
+  for (const role of EXCLUSIVE_ROLES) if (role.re.test(text)) return role;
+  return null;
+}
+
+/**
+ * 三个场景包。每个插件**只会被分到最契合的一个包**（不重复），
+ * 每个包内部再按角色去重。这样「装两个包」也不会装进两份同一个插件。
+ */
+/**
+ * 三个场景包 —— **成员是手工挑的，不是按分类筛出来的**。
+ *
+ * 组包遵守两条硬规则（下面代码会校验，违反直接抛错）：
+ *   1. 一个插件只能出现在一个包里 —— 同时装两个包不会重复装同一个插件
+ *   2. 同一个包里，独占角色各只能有一个 —— 两个皮肤 / 两个记忆后端会互相覆盖
+ */
+const PACKS = [
+  {
+    slug: 'creator',
+    name: '读写与创作',
+    pitch: '读资料、看视频、写东西：文档表格、小说、字幕摘要、设计稿与图像。',
+    members: [
+      'dsh-openwrite',
+      'dsh-cuigengji-plugin',
+      'dsh-univer-office',
+      '@fylar/dsh-fylar-office-editor',
+      '@zseven-w/dsh-openpencil',
+      'answer-me-with-html',
+      'dsh-better-display',
+      'dsh-bili-scroll',
+      'qiaomu-rss-dsh',
+      'dsh-motion-ui',
+      'dsh-raw-html-v2',
+      '@liustack/modlens',
+      'dsh-image-gen',
+      '@q253595422/dsh-imagegen-video',
+      'dsh-oil-creator',
+      'dsh-tts-bridge',
+    ],
+  },
+  {
+    slug: 'builder',
+    name: '开发与调试',
+    pitch: '写代码、调插件、排查问题：终端、上下文压缩、回滚、MCP 与移动端调试。',
+    members: [
+      'billion-context',
+      'dsh-connect-workbuddy',
+      '@deepseek-harness-tui/dsh-tui',
+      'seektty',
+      'dsh-ops',
+      'cc-safety-net',
+      'dsh-block-ptc',
+      'brooks-lint',
+      'dsh-undo-savepoint',
+      'dsh-config-manager',
+      '@michengai/dsh-skills-manager',
+      '@dsh-external/dsh-super-injector',
+      '@dsh-external/dsh-blender-plugin',
+      'easyeda-agent-dsh',
+      '@dhicoc/dsh-reverse-skill',
+      '@zseven-w/dsh-android',
+      '@zseven-w/dsh-ios',
+    ],
+  },
+  {
+    slug: 'daily',
+    name: '日常增强',
+    pitch: '每天都碰到的小事：费用与余额、免费模型、记忆、手机接管、通知与桌面。',
+    members: [
+      'dsh-our-free-model',
+      'dsh-mnemon',
+      'dsh-pocket',
+      'dsh-at-file',
+      'dsh-cost-meter',
+      'dsh-whale-widget',
+      '@michengai/dsh-archive-manager',
+      '@xmanrui/dsh-im',
+      'dsh-deepcanary',
+      'dsh-status-rotator',
+      '@cocofhu/anime-find',
+      '@ericwang1358/dsh-daily-flashcard',
+      'dsh-whale-girl-live2d',
+      'dsh-plugin-wallpaper-engine',
+    ],
+  },
+];
+
+// 校验：成员必须在插件表里、不得跨包重复、包内独占角色唯一
+const byPkgName = new Map(picked.map((r) => [(r.mf.name || r.name).toLowerCase(), r]));
+const packReports = [];
+const usedIn = new Map();
+for (const pack of PACKS) {
+  const members = [];
+  const missing = [];
+  for (const name of pack.members) {
+    const r = byPkgName.get(name.toLowerCase());
+    if (!r) { missing.push(name); continue; }
+    const key = (r.mf.name || r.name).toLowerCase();
+    if (usedIn.has(key)) throw new Error(`整合包冲突：${name} 同时出现在「${usedIn.get(key)}」与「${pack.name}」`);
+    usedIn.set(key, pack.name);
+    members.push({ r, role: roleOf(r) });
+  }
+  const seenRole = new Map();
+  for (const m of members) {
+    if (!m.role) continue;
+    const prior = seenRole.get(m.role.id);
+    if (prior) throw new Error(`「${pack.name}」里有多个${m.role.label}：${prior} 与 ${m.r.mf.name}`);
+    seenRole.set(m.role.id, m.r.mf.name);
+  }
+  packReports.push({ pack, members, missing });
+  console.log(`整合包「${pack.name}」：${members.length} 个${missing.length > 0 ? `（缺失 ${missing.length}：${missing.join(', ')}）` : ''}`);
+}
+console.log(`✅ 跨包自检：${usedIn.size} 个成员无重复`);
+
+for (const { pack, members } of packReports) {
+  writeFileSync(join(OUT, `modpack-${pack.slug}.dpmidx`), encodeMarketIndex(members.map((m) => toEntry(m.r)), {
     kind: KIND_MODPACK,
-    meta: { name: theme.name, publisher: PUBLISHER, description: theme.description, createdAt },
+    meta: { name: pack.name, publisher: PUBLISHER, description: pack.pitch, createdAt },
   }));
-  writeFileSync(join(OUT, `modpack-${theme.slug}.md`), [
-    `# ${theme.name}`,
+  writeFileSync(join(OUT, `modpack-${pack.slug}.json`), JSON.stringify({
+    name: pack.name,
+    publisher: PUBLISHER,
+    createdAt,
+    pitch: pack.pitch,
+    total: members.length,
+    installOrder: members.map((m, i) => ({ order: i + 1, name: m.r.mf.name || m.r.name, role: m.role?.label ?? null })),
+    note: '成员为人工挑选；每个插件只属于一个整合包；同包内独占角色唯一。',
+  }, null, 2));
+  const roles = EXCLUSIVE_ROLES.map((role) => {
+    const hit = members.find((m) => m.role?.id === role.id);
+    return `| ${role.label} | ${hit ? hit.r.mf.name : '—'} |`;
+  });
+  writeFileSync(join(OUT, `modpack-${pack.slug}.md`), [
+    `# ${pack.name}`,
     '',
     `> 署名：**${PUBLISHER}** ｜ 共 ${members.length} 个 ｜ 生成于 ${createdAt}`,
-    `> ${theme.description}`,
+    `> ${pack.pitch}`,
     '',
-    '| 插件 | 仓库 | 分类 | 星 | 月下载 |',
-    '|---|---|---|---:|---:|',
-    ...members.map((r) => `| ${r.mf.name || r.name} | ${r.fullName} | ${catLabel[r.category] ?? r.category} | ${r.stars} | ${r.downloads > 0 ? r.downloads : '—'} |`),
+    '**这不是「某个分类的合集」**：成员跨了多个分类，是按这个场景下会一起用到来挑的。',
+    '每个插件只属于一个整合包 —— 同时装两个包也不会重复安装。',
+    '',
+    '## 安装顺序',
+    '',
+    '| # | 插件 | 分类 | 独占角色 | 星 | 月下载 |',
+    '|---:|---|---|---|---:|---:|',
+    ...members.map((m, i) => `| ${i + 1} | ${m.r.mf.name || m.r.name} | ${catLabel[m.r.category] ?? m.r.category} | ${m.role?.label ?? '—'} | ${m.r.stars} | ${m.r.downloads > 0 ? m.r.downloads : '—'} |`),
+    '',
+    '## 独占角色（同包内只会有一个）',
+    '',
+    '| 角色 | 本包选择 |',
+    '|---|---|',
+    ...roles,
+    '',
+    '> 「模型来源 / 记忆后端 / 语音朗读 / 权限策略 / 界面皮肤」这类插件会互相覆盖，',
+    '> 所以一个包里只放一个；想换请在商店里单独安装并停用旧的。',
     '',
   ].join('\n'));
-  console.log(`整合包「${theme.name}」：${members.length} 个`);
 }
 
 console.log(`\n插件表：${picked.length} 个，覆盖 ${perCat.size} 个分类`);
