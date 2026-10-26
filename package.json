@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-hub",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Plugin Hub for DeepSeek Harness (DSH): a graphical app-store inside the Harness Web UI — browse, search, and one-click install GitHub dsh-plugins, with local ratings, dependency impact graphs, audit logging, and a development scaffold",
   "keywords": [
     "deepseek-harness",
