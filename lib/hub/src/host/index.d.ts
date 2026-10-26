@@ -140,6 +140,13 @@ export declare class PluginStoreService extends TypertRemoteService {
     /** 添加一个自动爬取的来源（GitHub 用户 / 组织 / 仓库 / topic）。 */
     addCrawlSource(spec: string, label?: string): Promise<Record<string, unknown>>;
     removeListSource(id: string): Promise<Record<string, unknown>>;
+    /**
+     * 认证一份列表：逐个插件记录「当前版本」。
+     *
+     * 认证是版本级事实：插件升级后版本对不上，UI 显示「有过认证」而不是「已认证」。
+     * 这样不需要每次发版都重签，也不会让旧认证冒充当前版本。
+     */
+    certifyList(id: string): Promise<Record<string, unknown>>;
     /** 读取一个来源的条目（分页 + 关键字过滤）。 */
     listSourceEntries(id: string, query?: string, limit?: number, offset?: number): Promise<Record<string, unknown>>;
     /**

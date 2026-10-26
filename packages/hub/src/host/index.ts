@@ -1143,6 +1143,41 @@ export class PluginStoreService extends TypertRemoteService {
     return { ok: true, message: `已移除「${row.label}」`, detail: null };
   }
 
+  /**
+   * 认证一份列表：逐个插件记录「当前版本」。
+   *
+   * 认证是版本级事实：插件升级后版本对不上，UI 显示「有过认证」而不是「已认证」。
+   * 这样不需要每次发版都重签，也不会让旧认证冒充当前版本。
+   */
+  @Remote('certifyList')
+  async certifyList(id: string): Promise<Record<string, unknown>> {
+    const source = this.db.getListSource(String(id));
+    if (!source) return { ok: false, message: '来源不存在', detail: null, count: 0 };
+    if (source.kind !== 0) return { ok: false, message: '整合包不能逐插件认证', detail: null, count: 0 };
+    const index = readSourceIndex(source, resolveDshHome());
+    const now = new Date().toISOString();
+    const publisher = source.publisher.trim() !== '' ? source.publisher : '云幻天';
+    let certified = 0;
+    let missing = 0;
+    for (let i = 0; i < index.count; i++) {
+      const name = index.name(i);
+      const version = this.db.getPlugin(name)?.version ?? '';
+      if (version === '') missing++;
+      this.db.upsertCert({ packageName: name, version, publisher, certifiedAt: now });
+      certified++;
+    }
+    source.provenance = 'certified';
+    source.syncedAt = now;
+    this.db.upsertListSource(source);
+    this.appendAudit('list_certify', source.label, 'ok', `${certified} 个（其中 ${missing} 个无本地版本信息）`, 'ui');
+    return {
+      ok: true,
+      message: `已认证「${source.label}」的 ${certified} 个插件${missing > 0 ? `（${missing} 个无本地版本信息，按名称认证）` : ''}`,
+      detail: null,
+      count: certified,
+    };
+  }
+
   /** 读取一个来源的条目（分页 + 关键字过滤）。 */
   @Remote('listSourceEntries')
   async listSourceEntries(id: string, query?: string, limit?: number, offset?: number): Promise<Record<string, unknown>> {
@@ -1161,6 +1196,12 @@ export class PluginStoreService extends TypertRemoteService {
       matched++;
       if (matched <= skip) continue;
       if (items.length >= max) continue;
+      const cert = this.db.getCert(name);
+      const currentVersion = this.db.getPlugin(name)?.version ?? '';
+      // 版本级认证：认证过且版本仍一致 = 已认证；认证过但版本变了 = 有过认证。
+      const certState: 'certified' | 'legacy' | 'none' = cert === undefined
+        ? 'none'
+        : (currentVersion === '' || cert.version === currentVersion ? 'certified' : 'legacy');
       const entry = {
         name,
         url: index.url(i),
@@ -1170,6 +1211,9 @@ export class PluginStoreService extends TypertRemoteService {
         flags: index.flags(i),
         repoKey: repoKeyOf(index.url(i)),
         installSpec: installSpecFor({ name, url: index.url(i) }),
+        cert: certState,
+        certVersion: cert?.version ?? null,
+        currentVersion: currentVersion === '' ? null : currentVersion,
       };
       items.push(entry);
     }

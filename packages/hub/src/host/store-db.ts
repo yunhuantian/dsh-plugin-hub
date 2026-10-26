@@ -153,6 +153,19 @@ export interface ListSourceRow {
   error: string | null;
 }
 
+/**
+ * 一条逐插件认证记录。
+ *
+ * `version` 是**认证时的版本**：插件升级后版本对不上，展示为 `legacy`（有过认证），
+ * 而不是丢掉认证或假装仍是最新认证。
+ */
+export interface PluginCertRow {
+  packageName: string;
+  version: string;
+  publisher: string;
+  certifiedAt: string;
+}
+
 function toListSourceRow(row: Record<string, unknown>): ListSourceRow {
   return {
     id: String(row.id),
@@ -291,6 +304,16 @@ CREATE TABLE IF NOT EXISTS list_sources (
   error TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_list_sources_kind ON list_sources(kind, provenance);
+
+-- 逐插件认证记录：认证是**版本级**的事实，不是插件的永久属性。
+-- 记录认证时的版本；插件升级后版本对不上 → 展示为「有过认证」而不是「已认证」，
+-- 这样既不用每次发版都重签，也不会让旧认证冒充当前版本。
+CREATE TABLE IF NOT EXISTS plugin_certs (
+  package_name TEXT PRIMARY KEY,
+  version TEXT NOT NULL DEFAULT '',
+  publisher TEXT NOT NULL DEFAULT '',
+  certified_at TEXT NOT NULL
+);
 `;
 
 export class StoreDB {
@@ -545,6 +568,49 @@ export class StoreDB {
   /** 认证列表数量（认证区为空时 UI 要给出明确解释）。 */
   countCertified(): number {
     const row = this.db.prepare("SELECT COUNT(*) AS c FROM list_sources WHERE kind = 0 AND provenance = 'certified'").get() as { c: number };
+    return Number(row?.c ?? 0);
+  }
+
+  // ---- per-plugin certification (version-level) ----------------------------
+
+  upsertCert(row: PluginCertRow): void {
+    this.db.prepare(`
+      INSERT INTO plugin_certs (package_name, version, publisher, certified_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(package_name) DO UPDATE SET
+        version = excluded.version,
+        publisher = excluded.publisher,
+        certified_at = excluded.certified_at
+    `).run(row.packageName, row.version, row.publisher, row.certifiedAt);
+  }
+
+  getCert(packageName: string): PluginCertRow | undefined {
+    const row = this.db.prepare('SELECT * FROM plugin_certs WHERE package_name = ?').get(packageName) as Record<string, unknown> | undefined;
+    if (!row) return undefined;
+    return {
+      packageName: String(row.package_name),
+      version: String(row.version ?? ''),
+      publisher: String(row.publisher ?? ''),
+      certifiedAt: String(row.certified_at ?? ''),
+    };
+  }
+
+  allCerts(): Map<string, PluginCertRow> {
+    const map = new Map<string, PluginCertRow>();
+    const rows = this.db.prepare('SELECT * FROM plugin_certs').all() as Array<Record<string, unknown>>;
+    for (const row of rows) {
+      map.set(String(row.package_name), {
+        packageName: String(row.package_name),
+        version: String(row.version ?? ''),
+        publisher: String(row.publisher ?? ''),
+        certifiedAt: String(row.certified_at ?? ''),
+      });
+    }
+    return map;
+  }
+
+  countCerts(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS c FROM plugin_certs').get() as { c: number };
     return Number(row?.c ?? 0);
   }
 

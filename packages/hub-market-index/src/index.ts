@@ -49,13 +49,19 @@ const KIND_LABEL: Record<number, string> = { [KIND_LIST]: '插件列表', [KIND_
 
 /** 魔数前缀 6 字节 + 版本 1 字节 + 容器类型 1 字节。 */
 const MAGIC_PREFIX = Buffer.from('DPMIDX', 'latin1');
-const MAGIC_VERSION_BYTE = 2;
+/**
+ * v3 起头部第 32 字节改为 `metaBytes`（署名/描述等 JSON 元数据），
+ * 原来这里是 8 字节保留位，v2 全是 0 —— 所以读 v2 文件时 metaBytes 自然是 0，
+ * 不需要额外分支。
+ */
+const MAGIC_VERSION_BYTE = 3;
+const MIN_MAGIC_VERSION_BYTE = 2;
 
 /** 容器类型的中文名，用于报错与界面提示。 */
 export function kindLabel(kind: number): string {
   return KIND_LABEL[kind] ?? `未知类型(${kind})`;
 }
-const VERSION = 2;
+const VERSION = 3;
 const HEADER_BYTES = 40;
 const RECORD_BYTES = 28;
 const DEPS_ENTRY_BYTES = 4;
@@ -92,10 +98,31 @@ export const FLAG_OFFICIAL = 0x04;
 export const FLAG_VERIFIED = 0x08;
 
 /** 打开后的索引句柄。字符串按需解码，映射一次后 O(1)。 */
+/**
+ * 容器元数据 —— **这是「署名」，不是「证明」**。
+ *
+ * 任何文件都能自称作者、自称已认证；信任必须由消费端用签名或签发记录校验，
+ * 不能只看这里的字段。它存在的意义是：文件转手之后，作者的名字不丢。
+ */
+export interface MarketMeta {
+  /** 展示名，如「插件表」「入门必备」。 */
+  name?: string;
+  /** 署名：作者 / 发布者。 */
+  publisher?: string;
+  /** 一句话说明。 */
+  description?: string;
+  /** 生成时间（ISO 8601）。 */
+  createdAt?: string;
+  /** 文件自称的认证等级（仅展示，不作信任依据）。 */
+  certification?: 'certified' | 'legacy' | 'none';
+}
+
 export interface MarketIndex {
   readonly count: number;
   /** 容器类型：KIND_LIST 或 KIND_MODPACK。 */
   readonly kind: number;
+  /** 容器元数据（署名 / 标题 / 描述）。v2 文件为空对象。 */
+  readonly meta: MarketMeta;
   /** 第 i 条记录的名称。 */
   name(i: number): string;
   url(i: number): string;
@@ -300,8 +327,11 @@ export function mergeMarketIndexes(sources: Array<{ source: string; index: Marke
 }
 
 /** 编码：字符串驻留（同名只存一次），定长记录按顺序写出。 */
-export function encodeMarketIndex(entries: MarketEntry[], options: { kind?: number } = {}): Buffer {
+export function encodeMarketIndex(entries: MarketEntry[], options: { kind?: number; meta?: MarketMeta } = {}): Buffer {
   const kind = options.kind ?? KIND_LIST;
+  const metaBuf = options.meta && Object.keys(options.meta).length > 0
+    ? Buffer.from(JSON.stringify(options.meta), 'utf8')
+    : Buffer.alloc(0);
   const strings: string[] = [];
   const ids = new Map<string, number>();
   const intern = (s: string): number => {
@@ -329,7 +359,7 @@ export function encodeMarketIndex(entries: MarketEntry[], options: { kind?: numb
   const enc = strings.map((s) => Buffer.from(s, 'utf8'));
   const strBytes = enc.reduce((n, b) => n + 4 + b.length, 0);
   const depsBytes = deps.length * DEPS_ENTRY_BYTES;
-  const total = HEADER_BYTES + strBytes + depsBytes + records.length * RECORD_BYTES;
+  const total = HEADER_BYTES + metaBuf.length + strBytes + depsBytes + records.length * RECORD_BYTES;
   const out = Buffer.allocUnsafe(total);
 
   MAGIC_PREFIX.copy(out, 0);
@@ -341,9 +371,11 @@ export function encodeMarketIndex(entries: MarketEntry[], options: { kind?: numb
   out.writeUInt32LE(deps.length, 20);
   out.writeUInt32LE(strBytes, 24);
   out.writeUInt32LE(depsBytes, 28);
-  out.writeBigUInt64LE(0n, 32);
+  out.writeUInt32LE(metaBuf.length, 32);
+  out.writeUInt32LE(0, 36);
 
   let at = HEADER_BYTES;
+  if (metaBuf.length > 0) { metaBuf.copy(out, at); at += metaBuf.length; }
   for (const b of enc) {
     out.writeUInt32LE(b.length, at);
     b.copy(out, at + 4);
@@ -366,18 +398,36 @@ export function encodeMarketIndex(entries: MarketEntry[], options: { kind?: numb
 export function openMarketIndex(buf: Buffer): MarketIndex {
   if (buf.length < HEADER_BYTES) throw new Error('索引文件过短');
   if (!buf.subarray(0, 6).equals(MAGIC_PREFIX)) throw new Error('不是 DPMIDX 文件（魔数不匹配）');
-  if (buf.readUInt8(6) !== MAGIC_VERSION_BYTE) throw new Error(`魔数版本不支持: ${buf.readUInt8(6)}`);
+  const magicVersion = buf.readUInt8(6);
+  if (magicVersion > MAGIC_VERSION_BYTE) {
+    // 典型场景：插件商店还是旧版，用户导入了一份新版格式的列表。
+    throw new Error(`索引格式版本 ${magicVersion} 比当前插件商店支持的新（最高 ${MAGIC_VERSION_BYTE}），请更新插件商店后重试`);
+  }
+  if (magicVersion < MIN_MAGIC_VERSION_BYTE) {
+    throw new Error(`魔数版本不受支持: ${magicVersion}`);
+  }
   const kind = buf.readUInt8(7);
   if (kind !== KIND_LIST && kind !== KIND_MODPACK) throw new Error(`未知的容器类型: ${kind}`);
   const version = buf.readUInt32LE(8);
-  if (version !== VERSION) throw new Error(`索引版本不支持: ${version}`);
+  if (version < 2 || version > VERSION) throw new Error(`索引版本不支持: ${version}`);
   const count = buf.readUInt32LE(12);
   const strCount = buf.readUInt32LE(16);
   const depsCount = buf.readUInt32LE(20);
   const strBytes = buf.readUInt32LE(24);
   const depsBytes = buf.readUInt32LE(28);
+  // v2 在这里是 8 字节保留位（全 0），所以同一个读取路径对 v2 自然得到 0。
+  const metaBytes = magicVersion >= 3 ? buf.readUInt32LE(32) : 0;
+  if (HEADER_BYTES + metaBytes > buf.length) throw new Error('索引被截断（元数据段）');
 
-  const strStart = HEADER_BYTES;
+  let meta: MarketMeta = {};
+  if (metaBytes > 0) {
+    try {
+      const parsed: unknown = JSON.parse(buf.toString('utf8', HEADER_BYTES, HEADER_BYTES + metaBytes));
+      if (parsed && typeof parsed === 'object') meta = parsed as MarketMeta;
+    } catch { /* 元数据坏了不影响条目读取 */ }
+  }
+
+  const strStart = HEADER_BYTES + metaBytes;
   const depsStart = strStart + strBytes;
   const recStart = depsStart + depsBytes;
   if (recStart + count * RECORD_BYTES > buf.length) throw new Error('索引被截断');
@@ -409,6 +459,7 @@ export function openMarketIndex(buf: Buffer): MarketIndex {
   return {
     count,
     kind,
+    meta,
     name: (i) => str(field(i, 0)),
     url: (i) => str(field(i, 1)),
     category: (i) => str(field(i, 2)),

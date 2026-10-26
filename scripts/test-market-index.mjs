@@ -112,6 +112,24 @@ ok('类型名可读', kindLabel(KIND_LIST) === '插件列表' && kindLabel(KIND_
   ok('未知魔数版本被拒绝', threw)
 }
 
+// ---- v3 元数据（署名）与 v2 向后兼容 ----
+{
+  const withMeta = encodeMarketIndex(sample, {
+    kind: KIND_LIST,
+    meta: { name: '插件表', publisher: '云幻天', description: '精选插件', createdAt: '2026-10-25T00:00:00.000Z' },
+  })
+  const mi = openMarketIndex(withMeta)
+  ok('署名往返正确', mi.meta.publisher === '云幻天' && mi.meta.name === '插件表', JSON.stringify(mi.meta))
+  ok('条目不受元数据影响', mi.count === 1 && mi.name(0) === 'dsh-x')
+
+  // 把同一份（无 meta）的文件伪装成 v2：头 8 字节零保留位在 v2 里天然为 0。
+  const legacy = Buffer.from(encodeMarketIndex(sample))
+  legacy.writeUInt8(2, 6)
+  legacy.writeUInt32LE(2, 8)
+  const li = openMarketIndex(legacy)
+  ok('v2 旧文件仍可读', li.count === 1 && li.name(0) === 'dsh-x' && Object.keys(li.meta).length === 0)
+}
+
 rmSync(work, { recursive: true, force: true })
 console.log(`\n${fails === 0 ? '全部通过' : `${fails} 条失败`}`)
 process.exit(fails === 0 ? 0 : 1)

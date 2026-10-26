@@ -580,3 +580,6 @@
 .dps-ok { color: #2f9e44; }
 .dps-bad { color: #e05252; }
 .dps-card-error { color: #e05252; margin: 0; font-size: 12px; }
+.dps-cert-certified { color: #2f9e44; }
+.dps-cert-legacy { color: #b8860b; }
+.dps-publisher { color: var(--dsw-alias-label-secondary); }

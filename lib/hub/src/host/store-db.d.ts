@@ -105,6 +105,18 @@ export interface ListSourceRow {
     syncedAt: string | null;
     error: string | null;
 }
+/**
+ * 一条逐插件认证记录。
+ *
+ * `version` 是**认证时的版本**：插件升级后版本对不上，展示为 `legacy`（有过认证），
+ * 而不是丢掉认证或假装仍是最新认证。
+ */
+export interface PluginCertRow {
+    packageName: string;
+    version: string;
+    publisher: string;
+    certifiedAt: string;
+}
 export declare class StoreDB {
     db: DatabaseSync;
     readonly path: string;
@@ -161,6 +173,10 @@ export declare class StoreDB {
     removeListSource(id: string): boolean;
     /** 认证列表数量（认证区为空时 UI 要给出明确解释）。 */
     countCertified(): number;
+    upsertCert(row: PluginCertRow): void;
+    getCert(packageName: string): PluginCertRow | undefined;
+    allCerts(): Map<string, PluginCertRow>;
+    countCerts(): number;
     /** Upsert skills collected from the ecosystem (keyed by their stable id). */
     replaceSkills(skills: SkillRow[]): number;
     /** Every collected skill, newest sync first. */

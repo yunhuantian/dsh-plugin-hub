@@ -252,6 +252,13 @@ export declare const listEntry: z.ZodReadonly<z.ZodObject<{
     flags: z.ZodNumber;
     repoKey: z.ZodString;
     installSpec: z.ZodNullable<z.ZodString>;
+    cert: z.ZodEnum<{
+        certified: "certified";
+        legacy: "legacy";
+        none: "none";
+    }>;
+    certVersion: z.ZodNullable<z.ZodString>;
+    currentVersion: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>>;
 export declare const installReceipt: z.ZodReadonly<z.ZodObject<{
     ok: z.ZodBoolean;

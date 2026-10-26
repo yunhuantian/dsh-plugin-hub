@@ -264,9 +264,13 @@ export async function addListSource(db: StoreDB, home: string, input: NewSourceI
 
   const index = openMarketIndex(stored);
   const now = new Date().toISOString();
+  // 展名优先级：调用方显式给的 > 文件自带的署名元数据 > 从 URL/内容推。
+  // 注意 meta 里的 publisher 只是**署名**（作者名字），不是认证凭据。
   const label = (input.label ?? '').trim() !== ''
     ? (input.label as string).trim()
-    : origin !== '' ? labelFromUrl(origin) : `${kindLabel(kind)} ${id}`;
+    : (index.meta.name ?? '').trim() !== ''
+      ? index.meta.name as string
+      : origin !== '' ? labelFromUrl(origin) : `${kindLabel(kind)} ${id}`;
 
   const row: ListSourceRow = {
     id,
@@ -275,7 +279,7 @@ export async function addListSource(db: StoreDB, home: string, input: NewSourceI
     kind,
     format,
     provenance: input.provenance === 'certified' ? 'certified' : 'auto',
-    publisher: input.publisher ?? '',
+    publisher: (input.publisher ?? '').trim() !== '' ? input.publisher as string : (index.meta.publisher ?? ''),
     entries: index.count,
     addedAt: db.getListSource(id)?.addedAt ?? now,
     syncedAt: now,

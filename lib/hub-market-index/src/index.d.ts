@@ -76,10 +76,30 @@ export declare const FLAG_SOURCE = 2;
 export declare const FLAG_OFFICIAL = 4;
 export declare const FLAG_VERIFIED = 8;
 /** 打开后的索引句柄。字符串按需解码，映射一次后 O(1)。 */
+/**
+ * 容器元数据 —— **这是「署名」，不是「证明」**。
+ *
+ * 任何文件都能自称作者、自称已认证；信任必须由消费端用签名或签发记录校验，
+ * 不能只看这里的字段。它存在的意义是：文件转手之后，作者的名字不丢。
+ */
+export interface MarketMeta {
+    /** 展示名，如「插件表」「入门必备」。 */
+    name?: string;
+    /** 署名：作者 / 发布者。 */
+    publisher?: string;
+    /** 一句话说明。 */
+    description?: string;
+    /** 生成时间（ISO 8601）。 */
+    createdAt?: string;
+    /** 文件自称的认证等级（仅展示，不作信任依据）。 */
+    certification?: 'certified' | 'legacy' | 'none';
+}
 export interface MarketIndex {
     readonly count: number;
     /** 容器类型：KIND_LIST 或 KIND_MODPACK。 */
     readonly kind: number;
+    /** 容器元数据（署名 / 标题 / 描述）。v2 文件为空对象。 */
+    readonly meta: MarketMeta;
     /** 第 i 条记录的名称。 */
     name(i: number): string;
     url(i: number): string;
@@ -175,6 +195,7 @@ export declare function mergeMarketIndexes(sources: Array<{
 /** 编码：字符串驻留（同名只存一次），定长记录按顺序写出。 */
 export declare function encodeMarketIndex(entries: MarketEntry[], options?: {
     kind?: number;
+    meta?: MarketMeta;
 }): Buffer;
 /** 打开索引：只校验头并计算各段起点，不解码任何字符串。 */
 export declare function openMarketIndex(buf: Buffer): MarketIndex;

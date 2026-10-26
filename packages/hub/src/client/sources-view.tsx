@@ -86,6 +86,16 @@ function EntryCard({ entry, sourceId, api, t, onChanged }: {
       <p className="dps-card-desc">{entry.description || '（暂无描述）'}</p>
       <div className="dps-card-meta">
         <span className="dps-badges">
+          {entry.cert !== 'none' && (
+            <span
+              className={`dps-badge dps-cert-${entry.cert}`}
+              title={entry.cert === 'legacy' && entry.certVersion
+                ? `${t('src.cert.hint')}（认证于 ${entry.certVersion}，当前 ${entry.currentVersion ?? '未知'}）`
+                : t('src.cert.hint')}
+            >
+              ✅ {entry.cert === 'certified' ? t('src.cert.certified') : t('src.cert.legacy')}
+            </span>
+          )}
           {entry.category !== '' && <span className="dps-badge">{entry.category}</span>}
           <span className={`dps-badge${artifact ? ' dps-badge-npm' : ''}`}>
             {artifact ? t('src.artifact') : t('src.source')}
@@ -148,6 +158,10 @@ function ListEntries({ api, source, t, onChanged }: CommonProps & { source: List
           />
         </div>
         <span className="dps-count">{t('src.count').replace('{n}', String(total))}</span>
+        {source.publisher !== '' && (
+          <span className="dps-count dps-publisher">{t('src.publisher').replace('{name}', source.publisher)}</span>
+        )}
+        <span className="dps-count">{formatLabel(source, t)}</span>
       </div>
       {error !== null && <div className="dps-error" role="alert"><IconWarning size={16} /><span className="dps-error-text">{error}</span></div>}
       {loading && entries.length === 0 ? (

@@ -127,6 +127,10 @@ export interface ListEntry {
   flags: number;
   repoKey: string;
   installSpec: string | null;
+  /** 版本级认证：certified 当前版本已认证 / legacy 有过认证 / none 未认证。 */
+  cert: 'certified' | 'legacy' | 'none';
+  certVersion: string | null;
+  currentVersion: string | null;
 }
 
 export interface ListMutation {
