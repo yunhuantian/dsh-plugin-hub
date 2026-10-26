@@ -111,6 +111,8 @@ export interface MarketMeta {
   publisher?: string;
   /** 一句话说明。 */
   description?: string;
+  /** 详细简介（可多行）。整合包作者用来交代包的定位、成员选择理由、使用提示等。 */
+  intro?: string;
   /** 生成时间（ISO 8601）。 */
   createdAt?: string;
   /** 文件自称的认证等级（仅展示，不作信任依据）。 */

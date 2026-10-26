@@ -257,6 +257,7 @@ export declare const listEntry: z.ZodReadonly<z.ZodObject<{
         legacy: "legacy";
         none: "none";
     }>;
+    inStore: z.ZodBoolean;
     certVersion: z.ZodNullable<z.ZodString>;
     currentVersion: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>>;
@@ -268,6 +269,41 @@ export declare const installReceipt: z.ZodReadonly<z.ZodObject<{
     restartRequired: z.ZodBoolean;
     reloadRequired: z.ZodBoolean;
     requiredEnv: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>>;
+/** 一键安装整合包的启动结果（实际进度走 modpackStatus 轮询）。 */
+export declare const modpackInstallResult: z.ZodReadonly<z.ZodObject<{
+    ok: z.ZodBoolean;
+    message: z.ZodString;
+    detail: z.ZodNullable<z.ZodString>;
+    state: z.ZodString;
+    total: z.ZodNumber;
+    installed: z.ZodNumber;
+    skipped: z.ZodNumber;
+    failed: z.ZodReadonly<z.ZodArray<z.ZodReadonly<z.ZodObject<{
+        name: z.ZodString;
+        message: z.ZodString;
+    }, z.core.$strip>>>>;
+}, z.core.$strip>>;
+/** 一键安装整合包的进度快照。 */
+export declare const modpackStatusResult: z.ZodReadonly<z.ZodObject<{
+    state: z.ZodString;
+    total: z.ZodNumber;
+    installed: z.ZodNumber;
+    skipped: z.ZodNumber;
+    failed: z.ZodReadonly<z.ZodArray<z.ZodReadonly<z.ZodObject<{
+        name: z.ZodString;
+        message: z.ZodString;
+    }, z.core.$strip>>>>;
+    current: z.ZodString;
+    message: z.ZodString;
+}, z.core.$strip>>;
+/** 容器署名元数据（读自 dpmidx 头部，仅展示，不作信任依据）。 */
+export declare const sourceMetaResult: z.ZodReadonly<z.ZodObject<{
+    name: z.ZodString;
+    publisher: z.ZodString;
+    description: z.ZodString;
+    intro: z.ZodString;
+    createdAt: z.ZodString;
 }, z.core.$strip>>;
 export declare const categoryToggleResult: z.ZodReadonly<z.ZodObject<{
     ok: z.ZodBoolean;

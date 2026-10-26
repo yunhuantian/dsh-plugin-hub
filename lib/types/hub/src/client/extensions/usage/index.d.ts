@@ -50,7 +50,7 @@ export declare const usageDictionaries: {
         empty: string;
         emptyHint: string;
     };
-    en: Record<"input" | "output" | "tab" | "hitRate" | "empty" | "emptyHint" | "chartAria" | "modelMix" | "running" | "modelUnknownHint" | "unknownPriceWarn" | "priceTable" | "effective" | "peakRule" | "priceVersionsUsed" | "sessionLabel" | "totalInput" | "totalOutput" | "costCharged" | "costChargedHint" | "costNow" | "deltaFlat" | "deltaMore" | "deltaLess" | "chartHint" | "modelUnknown" | "times", string>;
+    en: Record<"input" | "output" | "running" | "tab" | "hitRate" | "empty" | "emptyHint" | "chartAria" | "modelMix" | "modelUnknownHint" | "unknownPriceWarn" | "priceTable" | "effective" | "peakRule" | "priceVersionsUsed" | "sessionLabel" | "totalInput" | "totalOutput" | "costCharged" | "costChargedHint" | "costNow" | "deltaFlat" | "deltaMore" | "deltaLess" | "chartHint" | "modelUnknown" | "times", string>;
 };
 /**
  * 新版 harness 的 chat target 快照 —— 只声明本插件用到的字段。

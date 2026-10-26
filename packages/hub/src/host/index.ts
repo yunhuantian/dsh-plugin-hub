@@ -254,6 +254,10 @@ export class PluginStoreService extends TypertRemoteService {
   private npmAvailable: Map<string, boolean> | null = null;
   /** Live install progress per package (polled by the UI). */
   private installProgressMap = new Map<string, { phase: string; percent: number | null; detail: string; updatedAt: number }>();
+  /** 一键安装整合包的进行中任务（按来源 id）。串行安装，UI 轮询 modpackStatus。 */
+  private modpackJobs = new Map<string, { state: 'running' | 'done' | 'error'; total: number; installed: number; skipped: number; failed: Array<{ name: string; message: string }>; current: string; startedAt: number; finishedAt: number }>();
+  /** 一键安装整合包的完成态（留 10 分钟给 UI 查询）。 */
+  private modpackDone = new Map<string, { state: 'running' | 'done' | 'error'; total: number; installed: number; skipped: number; failed: Array<{ name: string; message: string }>; current: string; startedAt: number; finishedAt: number }>();
   /** Live publish progress per package (polled by the UI). */
   private publishProgressMap = new Map<string, { phase: string; percent: number | null; detail: string; updatedAt: number }>();
   /** Short-TTL cache of installed() — avoids full per-package disk I/O on
@@ -316,9 +320,19 @@ export class PluginStoreService extends TypertRemoteService {
     this.timer.unref?.();
   }
 
+  /**
+   * 是否同步外部社区仓库（信任徽章索引 + 百科目录）。
+   *
+   * 默认 **关**：这两条链路的数据来自别人维护的仓库，质量与可用性都不由我们控制，
+   * 失败时只在 meta 里留个错误串、用户看不见原因。想用的人显式写 `external_sync=1`。
+   * 关掉不影响商店本身 —— 镜像同步、安装、健康度都走自己的数据。
+   */
+  private externalSyncEnabled(): boolean {
+    return this.db.getMeta('external_sync') === '1';
+  }
+
   /** Kick off a background mirror sync (fire-and-forget from the RPC side). */
-  private async runSync(reason: 'manual' | 'scheduled' | 'boot'): Promise<void> {
-    if (this.syncing) return;
+  private async runSync(reason: 'manual' | 'scheduled' | 'boot'): Promise<void> {    if (this.syncing) return;
     this.syncing = true;
     this.db.setMeta('sync_state', 'syncing');
     try {
@@ -336,24 +350,30 @@ export class PluginStoreService extends TypertRemoteService {
       this.appendAudit('sync', 'github-mirror', result.error ? 'failed' : 'ok', `${reason}: ${result.total} repos (new ${result.added}, updated ${result.updated}, skipped ${result.skipped})${result.error ? ` — ${result.error}` : ''}`);
       // Trust-level sync from the community index — never blocks the mirror,
       // keeps the previous cache on failure (depend-on but work-without).
-      try {
-        const trust = await syncTrustLevels(this.github, this.db);
-        if (trust.ok) {
-          this.db.setMeta('trust_synced_total', String(trust.matched));
-          this.appendAudit('sync', 'trust-index', 'ok', `${trust.matched} entries, ${trust.updated} trust levels updated`);
-        } else {
-          this.db.setMeta('trust_error', trust.error ?? '');
+      // ⚠️ 外部仓库默认停用（2026-10-26）：那里的数据质量不可控，且它把「信任」外包给了
+      // 一个随时会变的外部文件。用户要开就显式打开 external_sync。
+      if (this.externalSyncEnabled()) {
+        try {
+          const trust = await syncTrustLevels(this.github, this.db);
+          if (trust.ok) {
+            this.db.setMeta('trust_synced_total', String(trust.matched));
+            this.appendAudit('sync', 'trust-index', 'ok', `${trust.matched} entries, ${trust.updated} trust levels updated`);
+          } else {
+            this.db.setMeta('trust_error', trust.error ?? '');
+          }
+        } catch (e) {
+          this.db.setMeta('trust_error', e instanceof Error ? e.message : String(e));
         }
-      } catch (e) {
-        this.db.setMeta('trust_error', e instanceof Error ? e.message : String(e));
       }
       // Blue-Whale catalog sync (extension directory for the encyclopedia) —
-      // also fail-safe, never blocks the mirror.
-      try {
-        const cat = await syncBlueWhaleCatalog(this.db);
-        if (!cat.ok) this.db.setMeta('catalog_error', cat.error ?? '');
-      } catch (e) {
-        this.db.setMeta('catalog_error', e instanceof Error ? e.message : String(e));
+      // also fail-safe, never blocks the mirror. 同样默认停用：百科已暂停。
+      if (this.externalSyncEnabled()) {
+        try {
+          const cat = await syncBlueWhaleCatalog(this.db);
+          if (!cat.ok) this.db.setMeta('catalog_error', cat.error ?? '');
+        } catch (e) {
+          this.db.setMeta('catalog_error', e instanceof Error ? e.message : String(e));
+        }
       }
       // Skill registry sync (conversation-callable SKILL.md) — fail-safe too.
       try {
@@ -1258,6 +1278,131 @@ export class PluginStoreService extends TypertRemoteService {
       this.installProgressMap.delete(target);
       return { ok: false, message, detail: null, packageName: target, restartRequired: false, reloadRequired: false };
     }
+  }
+
+  /** 一键安装整合包：后台串行安装（并发写 profile 的 node_modules 会互相踩），UI 轮询 modpackStatus。 */
+  @Remote('installModpack')
+  async installModpack(sourceId: string, actorRaw: string): Promise<Record<string, unknown>> {
+    const actor = sanitizeActor(actorRaw);
+    const source = this.db.getListSource(String(sourceId));
+    if (!source) return { ok: false, message: '来源不存在', detail: null, state: 'idle', total: 0, installed: 0, skipped: 0, failed: [] };
+    if (source.kind !== 1) return { ok: false, message: '该来源不是整合包', detail: source.label, state: 'idle', total: 0, installed: 0, skipped: 0, failed: [] };
+    const existing = this.modpackJobs.get(source.id);
+    if (existing && existing.state === 'running') {
+      return { ok: true, message: '这个整合包正在安装中', detail: source.label, state: existing.state, total: existing.total, installed: existing.installed, skipped: existing.skipped, failed: existing.failed };
+    }
+    const index = readSourceIndex(source, resolveDshHome());
+    const entries: Array<{ name: string; url: string }> = [];
+    for (let i = 0; i < index.count; i++) entries.push({ name: index.name(i), url: index.url(i) });
+    if (entries.length === 0) return { ok: false, message: '整合包是空的', detail: null, state: 'idle', total: 0, installed: 0, skipped: 0, failed: [] };
+
+    // 整包算一次写操作：内部逐个装不再各自计数。
+    const throttled = this.throttle('modpack-install', 6);
+    if (throttled) return { ok: false, message: throttled, detail: null, state: 'idle', total: 0, installed: 0, skipped: 0, failed: [] };
+
+    const job = {
+      state: 'running' as 'running' | 'done' | 'error',
+      total: entries.length,
+      installed: 0,
+      skipped: 0,
+      failed: [] as Array<{ name: string; message: string }>,
+      current: '',
+      startedAt: Date.now(),
+      finishedAt: 0,
+    };
+    this.modpackJobs.set(source.id, job);
+    void this.runModpackInstall(source, entries, job, actor);
+    return { ok: true, message: `开始安装「${source.label}」（${entries.length} 个）`, detail: source.label, state: job.state, total: job.total, installed: 0, skipped: 0, failed: [] };
+  }
+
+  private async runModpackInstall(source: { id: string; label: string }, entries: Array<{ name: string; url: string }>, job: { state: 'running' | 'done' | 'error'; total: number; installed: number; skipped: number; failed: Array<{ name: string; message: string }>; current: string; startedAt: number; finishedAt: number }, actor: string): Promise<void> {
+    try {
+      for (const entry of entries) {
+        job.current = entry.name;
+        try {
+          // 跳过的是「已安装」，不是「镜像库里有」—— 后者只是元数据，绝大多数都没装。
+          if (this.installedPackageNames().has(entry.name)) { job.skipped++; continue; }
+          // 镜像库里有 → 走 npm 安装（与单条安装一致，自带已安装检查）。
+          if (this.db.getPlugin(entry.name)) {
+            const r = await this.installPlugin(entry.name, actor, 'auto');
+            if (r.ok) { job.installed++; this.installedCache = null; }
+            else job.failed.push({ name: entry.name, message: `${String(r.message ?? '安装失败')}${r.detail ? ` · ${String(r.detail).split('\n').slice(-3).join(' ').slice(0, 300)}` : ''}` });
+            continue;
+          }
+          const spec = installSpecFor(entry);
+          if (spec === null) {
+            job.failed.push({ name: entry.name, message: '地址不是可安装的产物' });
+            this.appendAudit('install', entry.name, 'failed', `modpack:${source.label} → 不可安装的地址`, actor);
+            continue;
+          }
+          this.installProgressMap.set(entry.name, { phase: 'resolving', percent: 0, detail: `整合包「${source.label}」`, updatedAt: Date.now() });
+          const receipt = await runInstall(this.profile, spec, entry.name, actor, (p) => this.installProgressMap.set(entry.name, { ...p, updatedAt: Date.now() }));
+          this.installProgressMap.delete(entry.name);
+          if (receipt.ok) { job.installed++; this.installedCache = null; }
+          else job.failed.push({ name: entry.name, message: `${receipt.message}${receipt.detail ? ` · ${String(receipt.detail).split('\n').slice(-3).join(' ').slice(0, 300)}` : ''}` });
+          this.appendAudit('install', entry.name, receipt.ok ? 'ok' : 'failed', `modpack:${source.label} → ${spec}`, actor);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          this.installProgressMap.delete(entry.name);
+          job.failed.push({ name: entry.name, message });
+          this.appendAudit('install', entry.name, 'failed', message, actor);
+        }
+      }
+      job.state = job.failed.length > 0 && job.installed === 0 && job.skipped === 0 ? 'error' : 'done';
+    } catch (error) {
+      job.state = 'error';
+      job.failed.push({ name: job.current, message: error instanceof Error ? error.message : String(error) });
+    } finally {
+      job.current = '';
+      job.finishedAt = Date.now();
+      this.modpackJobs.delete(source.id);
+      // 完成态留 10 分钟给 UI 查询，之后由查询时惰性清理。
+      const done = { ...job };
+      this.modpackDone.set(source.id, { ...done, finishedAt: Date.now() });
+    }
+  }
+
+  @Remote('modpackStatus')
+  async modpackStatus(sourceId: string): Promise<Record<string, unknown>> {
+    const id = String(sourceId);
+    const running = this.modpackJobs.get(id);
+    if (running) {
+      return { state: running.state, total: running.total, installed: running.installed, skipped: running.skipped, failed: running.failed, current: running.current, message: running.current !== '' ? `正在装 ${running.current}（${running.installed + running.skipped + running.failed.length}/${running.total}）` : '准备中' };
+    }
+    const done = this.modpackDone.get(id);
+    if (done) {
+      if (Date.now() - done.finishedAt > 10 * 60_000) this.modpackDone.delete(id);
+      return {
+        state: done.state,
+        total: done.total,
+        installed: done.installed,
+        skipped: done.skipped,
+        failed: done.failed,
+        current: '',
+        message: done.state === 'error'
+          ? `安装失败：${done.failed.map((f) => `${f.name}（${f.message}）`).join('、')}`
+          : `完成：新装 ${done.installed} 个、已存在跳过 ${done.skipped} 个${done.failed.length > 0 ? `、失败 ${done.failed.length} 个（${done.failed.map((f) => f.name).join('、')}）` : ''}`,
+      };
+    }
+    return { state: 'idle', total: 0, installed: 0, skipped: 0, failed: [], current: '', message: '' };
+  }
+
+  /** 读来源文件的署名元数据（展示用；信任判断不在这一层）。整合包页用它显示简介。 */
+  @Remote('sourceMeta')
+  async sourceMeta(sourceId: string): Promise<Record<string, unknown>> {
+    const row = this.db.getListSource(String(sourceId));
+    if (row === undefined) throw new Error('来源不存在');
+    try {
+      const index = readSourceIndex(row, resolveDshHome());
+      const m = index.meta;
+      return {
+        name: m.name ?? '',
+        publisher: m.publisher ?? '',
+        description: m.description ?? '',
+        intro: m.intro ?? '',
+        createdAt: m.createdAt ?? '',
+      };
+    } catch { return { name: '', publisher: '', description: '', intro: '', createdAt: '' }; }
   }
 
   @Remote('syncNow')

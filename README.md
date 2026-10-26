@@ -186,6 +186,9 @@ OpenAI / Anthropic / Google / Qwen / 智谱 / Moonshot 的价格一并内置。
 
 ### 插件百科 / 技能商店（默认关）
 - **百科**：把插件元数据、README 要点、依赖与相关插件汇总成可检索条目。
+  ⚠️ 0.2.5 起**默认停用**：它依赖的外部目录仓库（Blue-Whale-Harness）数据质量不稳，
+  先关掉，等改成自建目录再开。同一开关也管信任徽章索引（dsh-hub-index）。
+  需要时在商店设置里把来源开关打开，写 meta `external_sync=1` 即可恢复。
 - **技能商店**：跨生态收集 `SKILL.md` 技能包，检索并一键安装到本地技能目录。
 
 ---
@@ -204,6 +207,32 @@ OpenAI / Anthropic / Google / Qwen / 智谱 / Moonshot 的价格一并内置。
   列表与搜索不再受网络与限频影响
 - **依赖拓扑**：插件的依赖与被依赖关系图
 - **生态接入**：跑分机（dsh-bench）的本地状态读写与一键触发跑分
+
+---
+
+## 自己做列表 / 整合包
+
+`.dpmidx` 不绑定本商店 —— 任何人都能生成一份自己的列表或整合包，别人用链接或文件导入即可。
+
+- **手把手教程**：[`docs/build-list-and-pack.md`](docs/build-list-and-pack.md) —— 输入怎么写、怎么构建、怎么自检、常见错误
+- **二进制格式规范**：[`docs/market-index-format.md`](docs/market-index-format.md) —— 头部布局、记录结构、多源合并规则
+- **整合包设计**：[`docs/modpack-architecture.md`](docs/modpack-architecture.md) —— 为什么列表和整合包要用 `kind` 分开
+
+最小例子（整合包）：
+
+```json
+{
+  "kind": 1,
+  "meta": { "name": "我的包", "publisher": "我", "description": "一句话", "intro": "详细说明\n第二行" },
+  "entries": [
+    { "name": "dsh-ops", "url": "https://registry.npmjs.org/dsh-ops/-/dsh-ops-0.4.1.tgz" }
+  ]
+}
+```
+
+```bash
+node scripts/build-market-index.mjs my-pack.json my-pack.dpmidx
+```
 
 ---
 

@@ -15,13 +15,14 @@ interface CommonProps {
     api: RemoteApi;
     t: (key: string) => string;
     onChanged: () => void;
+    /** 条目在镜像库里时，可以跳到商店的完整详情页。 */
+    onOpenPlugin?: (name: string) => void;
 }
 /** 自动识别：内置爬取 + 任意来源的列表。 */
-export declare function AutoZone({ api, t, onChanged, renderBuiltin }: CommonProps & {
+export declare function AutoZone({ api, t, onChanged, onOpenPlugin, renderBuiltin }: CommonProps & {
     renderBuiltin: () => ReactNode;
 }): ReactNode;
 /** 认证列表：只有签发记录（provenance=certified）的列表。 */
-export declare function CertifiedZone({ api, t, onChanged }: CommonProps): ReactNode;
-/** 整合包：kind=1 的容器，只在本页读取。 */
-export declare function ModpackZone({ api, t, onChanged }: CommonProps): ReactNode;
+export declare function CertifiedZone({ api, t, onChanged, onOpenPlugin }: CommonProps): ReactNode;
+export declare function ModpackZone({ api, t, onChanged, onOpenPlugin }: CommonProps): ReactNode;
 export {};

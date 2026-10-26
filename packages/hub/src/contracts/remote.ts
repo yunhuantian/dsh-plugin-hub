@@ -186,6 +186,38 @@ export const installReceipt = z.object({
   requiredEnv: z.array(z.string()).optional(),
 }).readonly();
 
+/** 一键安装整合包的启动结果（实际进度走 modpackStatus 轮询）。 */
+export const modpackInstallResult = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+  detail: z.string().nullable(),
+  state: z.string(),
+  total: z.number(),
+  installed: z.number(),
+  skipped: z.number(),
+  failed: z.array(z.object({ name: z.string(), message: z.string() }).readonly()).readonly(),
+}).readonly();
+
+/** 一键安装整合包的进度快照。 */
+export const modpackStatusResult = z.object({
+  state: z.string(),
+  total: z.number(),
+  installed: z.number(),
+  skipped: z.number(),
+  failed: z.array(z.object({ name: z.string(), message: z.string() }).readonly()).readonly(),
+  current: z.string(),
+  message: z.string(),
+}).readonly();
+
+/** 容器署名元数据（读自 dpmidx 头部，仅展示，不作信任依据）。 */
+export const sourceMetaResult = z.object({
+  name: z.string(),
+  publisher: z.string(),
+  description: z.string(),
+  intro: z.string(),
+  createdAt: z.string(),
+}).readonly();
+
 export const categoryToggleResult = z.object({
   ok: z.boolean(),
   message: z.string(),
@@ -388,6 +420,14 @@ export const descriptors = [
     parameter('name', z.string()),
     parameter('actor', z.string()),
   ], installReceipt),
+  /** 一键安装整合包：后台串行安装，立即返回后用 modpackStatus 轮询。 */
+  descriptor('installModpack', [
+    parameter('sourceId', z.string()),
+    parameter('actor', z.string()),
+  ], modpackInstallResult),
+  /** 查询一键安装进度（state: running / done / error / idle）。 */
+  descriptor('modpackStatus', [parameter('sourceId', z.string())], modpackStatusResult),
+  descriptor('sourceMeta', [parameter('sourceId', z.string())], sourceMetaResult),
   descriptor('detail', [parameter('packageName', z.string())], pluginDetail),
   descriptor('skillList', [parameter('filters', z.object({ query: z.string().nullish(), category: z.string().nullish(), platform: z.string().nullish(), limit: z.number().nullish() }).readonly().nullish())], z.object({
     total: z.number(),

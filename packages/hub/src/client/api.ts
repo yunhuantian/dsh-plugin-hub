@@ -361,6 +361,41 @@ export interface RemoteApi {
   removeListSource(id: string): Promise<OpResult>;
   listSourceEntries(id: string, query?: string | null, limit?: number | null, offset?: number | null): Promise<{ source: ListSource; total: number; items: ListEntry[] }>;
   installFromSource(sourceId: string, name: string, actor: string): Promise<InstallReceipt>;
+  /** 一键安装整合包：后台串行装，返回启动结果。 */
+  installModpack(sourceId: string, actor: string): Promise<ModpackInstallStart>;
+  /** 查询一键安装进度。 */
+  modpackStatus(sourceId: string): Promise<ModpackStatus>;
+  sourceMeta(sourceId: string): Promise<SourceMeta>;
+}
+
+export interface ModpackInstallStart {
+  ok: boolean;
+  message: string;
+  detail: string | null;
+  state: string;
+  total: number;
+  installed: number;
+  skipped: number;
+  failed: Array<{ name: string; message: string }>;
+}
+
+export interface ModpackStatus {
+  state: 'idle' | 'running' | 'done' | 'error';
+  total: number;
+  installed: number;
+  skipped: number;
+  failed: Array<{ name: string; message: string }>;
+  current: string;
+  message: string;
+}
+
+/** 来源文件的署名元数据（展示用）。 */
+export interface SourceMeta {
+  name: string;
+  publisher: string;
+  description: string;
+  intro: string;
+  createdAt: string;
 }
 
 /** 一个内建插件的运行行。 */
@@ -484,6 +519,9 @@ export function makeApi(remote: Record<string, any>): RemoteApi {
     removeListSource: async (id) => unwrap(await r.removeListSource(id)),
     listSourceEntries: async (id, query, limit, offset) => unwrap(await r.listSourceEntries(id, query, limit, offset)),
     installFromSource: async (sourceId, name, actor) => unwrap(await r.installFromSource(sourceId, name, actor)),
+    installModpack: async (sourceId, actor) => unwrap(await r.installModpack(sourceId, actor)),
+    modpackStatus: async (sourceId) => unwrap(await r.modpackStatus(sourceId)),
+    sourceMeta: async (sourceId) => unwrap(await r.sourceMeta(sourceId)),
   };
 }
 

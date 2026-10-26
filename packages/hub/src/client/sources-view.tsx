@@ -10,7 +10,7 @@
  * 传入，避免两个视图文件互相引用成环。
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { ListEntry, ListSource, RemoteApi } from './api';
+import type { ListEntry, ListSource, ModpackStatus, RemoteApi, SourceMeta } from './api';
 import { getActor } from './api';
 import { IconCordisPlugin, IconDownload, IconRefresh, IconSearch, IconTrash, IconWarning } from './icons';
 
@@ -590,11 +590,72 @@ export function CertifiedZone({ api, t, onChanged, onOpenPlugin }: CommonProps):
 }
 
 /** 整合包：kind=1 的容器，只在本页读取。 */
+/** 整合包「一键安装」：后台串行装，按钮旁实时显示进度，结束后给出汇总。 */
+function ModpackInstallButton({ api, source, t, onChanged }: { api: RemoteApi; source: ListSource; t: (k: string) => string; onChanged: () => void }): ReactNode {
+  const [status, setStatus] = useState<ModpackStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const changedRef = useRef(onChanged);
+  changedRef.current = onChanged;
+  const tickRef = useRef<() => void>(() => undefined);
+
+  // 单轮询循环：挂载时查一次（切回来时可能还在装），运行中每 1.5s 刷新。
+  useEffect(() => {
+    let stopped = false;
+    let timer = 0;
+    const tick = async () => {
+      if (timer !== 0) { window.clearTimeout(timer); timer = 0; }
+      try {
+        const s = await api.modpackStatus(source.id);
+        if (stopped) return;
+        setStatus(s);
+        if (s.state === 'running') timer = window.setTimeout(() => { void tick(); }, 1500);
+        else if (s.state === 'done' || s.state === 'error') changedRef.current();
+      } catch { /* 轮询失败不打断 UI */ }
+    };
+    tickRef.current = () => { void tick(); };
+    void tick();
+    return () => { stopped = true; if (timer !== 0) window.clearTimeout(timer); tickRef.current = () => undefined; };
+  }, [api, source.id]);
+
+  const start = async () => {
+    if (busy || status?.state === 'running') return;
+    setBusy(true);
+    try {
+      const r = await api.installModpack(source.id, getActor());
+      if (!r.ok) {
+        setStatus({ state: 'error', total: 0, installed: 0, skipped: 0, failed: [], current: '', message: r.message });
+        return;
+      }
+      tickRef.current();
+    } catch (e) {
+      setStatus({ state: 'error', total: 0, installed: 0, skipped: 0, failed: [], current: '', message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const running = status?.state === 'running';
+  const label = running ? t('src.modpack.installing') : status?.state === 'done' || status?.state === 'error' ? t('src.modpack.reinstall') : t('src.modpack.install');
+  return (
+    <span className="dps-modpack-install">
+      <button type="button" className="dps-btn dps-btn-primary dps-btn-sm" disabled={busy || running} onClick={() => void start()}>
+        {label}
+      </button>
+      {status !== null && status.message !== '' && (
+        <span className={`dps-modpack-status${status.state === 'error' ? ' dps-bad' : status.state === 'done' ? ' dps-ok' : ''}`} title={status.failed.map((f) => `${f.name}: ${f.message}`).join('\n')}>
+          {running && status.total > 0 ? `${t('src.modpack.progress').replace('{a}', String(status.installed + status.skipped + status.failed.length)).replace('{b}', String(status.total))} · ` : ''}{status.message}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function ModpackZone({ api, t, onChanged, onOpenPlugin }: CommonProps): ReactNode {
   const [sources, setSources] = useState<ListSource[]>([]);
   const [selected, setSelected] = useState('');
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [meta, setMeta] = useState<SourceMeta | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -606,6 +667,15 @@ export function ModpackZone({ api, t, onChanged, onOpenPlugin }: CommonProps): R
   }, [api]);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  // 简介等署名元数据：跟着选中项走，读不到就静默留空。
+  useEffect(() => {
+    let alive = true;
+    setMeta(null);
+    if (selected === '') return;
+    api.sourceMeta(selected).then((m) => { if (alive) setMeta(m); }).catch(() => { /* 无 meta 也正常 */ });
+    return () => { alive = false; };
+  }, [api, selected]);
 
   const current = sources.find((s) => s.id === selected) ?? null;
 
@@ -629,9 +699,12 @@ export function ModpackZone({ api, t, onChanged, onOpenPlugin }: CommonProps): R
         t={t}
         showBuiltin={false}
         extra={current !== null ? (
-          <button type="button" className="dps-chip dps-chip-danger" onClick={() => void remove()}>
-            <IconTrash size={13} /> {t('src.remove')}
-          </button>
+          <>
+            <ModpackInstallButton api={api} source={current} t={t} onChanged={onChanged} />
+            <button type="button" className="dps-chip dps-chip-danger" onClick={() => void remove()}>
+              <IconTrash size={13} /> {t('src.remove')}
+            </button>
+          </>
         ) : undefined}
       />
       {error !== null && <div className="dps-error" role="alert"><IconWarning size={16} /><span className="dps-error-text">{error}</span></div>}
@@ -645,6 +718,13 @@ export function ModpackZone({ api, t, onChanged, onOpenPlugin }: CommonProps): R
       ) : (
         <>
           <p className="dps-hint">{t('src.modpackNote')} · {formatLabel(current, t)} · {current.entries} {t('src.entries')}</p>
+          {meta !== null && (meta.description !== '' || meta.intro !== '') && (
+            <div className="dps-modpack-intro">
+              {meta.publisher !== '' && <span className="dps-modpack-publisher">{meta.publisher}</span>}
+              {meta.description !== '' && <p className="dps-modpack-desc">{meta.description}</p>}
+              {meta.intro !== '' && <pre className="dps-modpack-intro-text">{meta.intro}</pre>}
+            </div>
+          )}
           <ListEntries api={api} t={t} source={current} onChanged={onChanged} onOpenPlugin={onOpenPlugin} />
         </>
       )}

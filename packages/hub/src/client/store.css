@@ -597,3 +597,9 @@
 .dps-kv dt { color: var(--dsw-alias-label-tertiary); }
 .dps-kv dd { color: var(--dsw-alias-label-primary); margin: 0; word-break: break-all; }
 .dps-kv code { background: var(--dsw-alias-interactive-bg-hover); border-radius: 6px; padding: 1px 5px; font-size: 12px; }
+.dps-modpack-install { align-items: center; gap: 8px; display: inline-flex; flex-wrap: wrap; }
+.dps-modpack-status { color: var(--dsw-alias-label-secondary); max-width: 460px; font-size: 12px; }
+.dps-modpack-intro { margin: 6px 0 2px; padding: 8px 12px; border: 1px solid var(--dsw-alias-border-secondary); border-radius: 8px; background: var(--dsw-alias-interactive-bg-hover); max-width: 720px; }
+.dps-modpack-publisher { display: inline-block; font-size: 12px; color: var(--dsw-alias-label-secondary); margin-bottom: 2px; }
+.dps-modpack-desc { margin: 0 0 2px; font-size: 13px; color: var(--dsw-alias-label-primary); }
+.dps-modpack-intro-text { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 13px; color: var(--dsw-alias-label-secondary); }

@@ -51,6 +51,10 @@ export declare class PluginStoreService extends TypertRemoteService {
     private npmAvailable;
     /** Live install progress per package (polled by the UI). */
     private installProgressMap;
+    /** 一键安装整合包的进行中任务（按来源 id）。串行安装，UI 轮询 modpackStatus。 */
+    private modpackJobs;
+    /** 一键安装整合包的完成态（留 10 分钟给 UI 查询）。 */
+    private modpackDone;
     /** Live publish progress per package (polled by the UI). */
     private publishProgressMap;
     /** Short-TTL cache of installed() — avoids full per-package disk I/O on
@@ -74,6 +78,14 @@ export declare class PluginStoreService extends TypertRemoteService {
     constructor(ctx: any, config?: Record<string, unknown>);
     private get loader();
     private scheduleTimer;
+    /**
+     * 是否同步外部社区仓库（信任徽章索引 + 百科目录）。
+     *
+     * 默认 **关**：这两条链路的数据来自别人维护的仓库，质量与可用性都不由我们控制，
+     * 失败时只在 meta 里留个错误串、用户看不见原因。想用的人显式写 `external_sync=1`。
+     * 关掉不影响商店本身 —— 镜像同步、安装、健康度都走自己的数据。
+     */
+    private externalSyncEnabled;
     /** Kick off a background mirror sync (fire-and-forget from the RPC side). */
     private runSync;
     private appendAudit;
@@ -154,6 +166,12 @@ export declare class PluginStoreService extends TypertRemoteService {
      * 已经在镜像库里的包走原有安装链路（它会挑 npm 还是 git）。
      */
     installFromSource(sourceId: string, name: string, actorRaw: string): Promise<Record<string, unknown>>;
+    /** 一键安装整合包：后台串行安装（并发写 profile 的 node_modules 会互相踩），UI 轮询 modpackStatus。 */
+    installModpack(sourceId: string, actorRaw: string): Promise<Record<string, unknown>>;
+    private runModpackInstall;
+    modpackStatus(sourceId: string): Promise<Record<string, unknown>>;
+    /** 读来源文件的署名元数据（展示用；信任判断不在这一层）。整合包页用它显示简介。 */
+    sourceMeta(sourceId: string): Promise<Record<string, unknown>>;
     syncNow(): Promise<Record<string, unknown>>;
     syncStatus(): Promise<Record<string, unknown>>;
     settings(): Promise<Record<string, unknown>>;

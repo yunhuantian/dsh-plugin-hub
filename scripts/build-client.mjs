@@ -44,7 +44,10 @@ const EXTERNALS = [
 const PLUGIN_ID = 'dsh-plugin-hub';
 
 async function main() {
-  rmSync(join(root, 'dist'), { recursive: true, force: true });
+  // ⚠️ 只删自己那个中间产物。dist/ 还装着分发产物（dist/tables、dist/downloads），
+  // 早先这里写过 rmSync(join(root,'dist')) —— 每跑一次构建就把插件表和整合包清空，
+  // 而且是静默的，很难联想到是构建脚本干的。
+  rmSync(outBody, { force: true });
   mkdirSync(dirname(outFile), { recursive: true });
 
   const result = await build({
@@ -88,7 +91,7 @@ ${indent(body, 2)}
   // safe-delete shim intercepts rmSync and throws — the bundle is already
   // written at this point, so a failed cleanup must NOT fail the build.
   try {
-    rmSync(join(root, 'dist'), { recursive: true, force: true });
+    rmSync(outBody, { force: true });
   } catch { /* non-fatal */ }
   console.log(`client bundle written: ${outFile} (${wrapped.length} bytes)`);
 }

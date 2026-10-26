@@ -5,6 +5,15 @@
  *   { "name": "dsh-foo", "url": "https://…/foo.tar.gz", "category": "tool", "deps": ["dsh-bar"], "flags": 0 }
  * 只要求 name 与 url；category / deps / flags 可省。
  *
+ * 整合包（kind=1）与署名元数据：输入也可以是一个对象
+ *   {
+ *     "kind": 1,
+ *     "meta": { "name": "入门必备", "publisher": "某人",
+ *               "description": "一句话说明", "intro": "多行详细简介…" },
+ *     "entries": [ …同上条目… ]
+ *   }
+ * meta.name 会在商店里作为来源展示名，meta.intro 是整合包简介（作者自由发挥）。
+ *
  * 用法：
  *   node scripts/build-market-index.mjs <输入> <输出.dpmidx>
  *   node scripts/build-market-index.mjs <输入>            # 输出 <输入>.dpmidx
@@ -42,7 +51,26 @@ if (!input) {
 
 const text = readFileSync(input, 'utf8').trim()
 let rows
-if (text.startsWith('[')) rows = JSON.parse(text)
+let containerKind = 0
+let containerMeta = {}
+// 对象输入 = 带容器元数据（整合包或带署名的列表）；数组/NDJSON = 纯列表。
+// 判据：整份文件能被解析成**一个** JSON 对象，且带 entries / kind / meta 字段。
+// 不能只看首字符 —— NDJSON 第一行也是 `{`，但整体不是合法 JSON。
+if (text.startsWith('{')) {
+  let obj
+  let single = false
+  try { obj = JSON.parse(text); single = true } catch { single = false }
+  if (single && obj && !Array.isArray(obj) && (obj.entries !== undefined || obj.kind !== undefined || obj.meta !== undefined)) {
+    rows = obj.entries ?? []
+    containerKind = obj.kind === 1 ? 1 : 0
+    if (obj.meta && typeof obj.meta === 'object') containerMeta = obj.meta
+  } else if (single) {
+    rows = [obj]
+  } else {
+    // NDJSON：一行一条
+    rows = text.split(/\r?\n/).filter((l) => l.trim()).map((l) => JSON.parse(l))
+  }
+} else if (text.startsWith('[')) rows = JSON.parse(text)
 else rows = text.split(/\r?\n/).filter((l) => l.trim()).map((l) => JSON.parse(l))
 
 if (!Array.isArray(rows)) throw new Error('输入必须是数组或 NDJSON')
@@ -70,7 +98,9 @@ for (const r of rows) {
   })
 }
 
-const buf = encodeMarketIndex(entries)
+const meta = { ...containerMeta }
+if (meta.createdAt === undefined) meta.createdAt = new Date().toISOString()
+const buf = encodeMarketIndex(entries, { kind: containerKind, meta })
 const out = outputArg ?? `${input.replace(/\.[^.]+$/, '')}.dpmidx`
 writeFileSync(out, buf)
 

@@ -554,6 +554,11 @@ const PACKS = [
     slug: 'creator',
     name: '读写与创作',
     pitch: '读资料、看视频、写东西：文档表格、小说、字幕摘要、设计稿与图像。',
+    about: [
+      '面向「用 AI 处理内容」的场景：读（RSS、B 站字幕、网页原文）、写（小说、HTML 渲染、',
+      '图像生成、TTS 配音）、看（文档表格直读、设计稿预览）。',
+      '成员按独占角色挑选 —— 同类只留一个，装完即用，不需要在同类插件里二选一。',
+    ].join('\n'),
     members: [
       'dsh-openwrite',
       'dsh-cuigengji-plugin',
@@ -577,6 +582,12 @@ const PACKS = [
     slug: 'builder',
     name: '开发与调试',
     pitch: '写代码、调插件、排查问题：终端、上下文压缩、回滚、MCP 与移动端调试。',
+    about: [
+      '面向「开发和调试」的场景：大上下文（billion-context）、终端（TUI / seektty）、',
+      '运维巡检（dsh-ops）、安全网与回滚（cc-safety-net / undo-savepoint）、配置与技能管理，',
+      '以及移动端（Android / iOS）与外部工具（Blender、立创 EDA）联动。',
+      '适合把 DSH 当主力开发环境的用户；普通用户建议优先装「日常增强」。',
+    ].join('\n'),
     members: [
       'billion-context',
       'dsh-connect-workbuddy',
@@ -601,6 +612,11 @@ const PACKS = [
     slug: 'daily',
     name: '日常增强',
     pitch: '每天都碰到的小事：费用与余额、免费模型、记忆、手机接管、通知与桌面。',
+    about: [
+      '面向「每天都用得上」的场景：查费用、找免费模型、长期记忆、文件速览，',
+      '以及手机接管、IM 通知、桌面状态牌这类把 DSH 接进日常的小工具。',
+      '没有依赖门槛，是三个整合包里最推荐新用户先装的。',
+    ].join('\n'),
     members: [
       'dsh-our-free-model',
       'dsh-mnemon',
@@ -660,13 +676,14 @@ console.log(`✅ 跨包自检：${usedIn.size} 个成员无重复`);
 for (const { pack, members, unverified } of packReports) {
   writeFileSync(join(OUT, `modpack-${pack.slug}.dpmidx`), encodeMarketIndex(members.map((m) => toEntry(m.r)), {
     kind: KIND_MODPACK,
-    meta: { name: pack.name, publisher: PUBLISHER, description: pack.pitch, createdAt },
+    meta: { name: pack.name, publisher: PUBLISHER, description: pack.pitch, intro: pack.about, createdAt },
   }));
   writeFileSync(join(OUT, `modpack-${pack.slug}.json`), JSON.stringify({
     name: pack.name,
     publisher: PUBLISHER,
     createdAt,
     pitch: pack.pitch,
+    intro: pack.about,
     total: members.length,
     installOrder: members.map((m, i) => ({ order: i + 1, name: m.r.mf.name || m.r.name, role: m.role?.label ?? null })),
     note: '成员为人工挑选；每个插件只属于一个整合包；同包内独占角色唯一。',
