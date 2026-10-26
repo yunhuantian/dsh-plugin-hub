@@ -665,6 +665,21 @@ for (const { pack, members } of packReports) {
     const hit = members.find((m) => m.role?.id === role.id);
     return `| ${role.label} | ${hit ? hit.r.mf.name : '—'} |`;
   });
+  // 跨包：成员不重复，但「角色」可能撞（比如两个包各有一个模型来源）。
+  // 这种不是装不上，而是同时用会互相覆盖 —— 在说明里写清楚，让用户二选一。
+  const crossNotes = [];
+  for (const m of members) {
+    if (!m.role) continue;
+    for (const other of packReports) {
+      if (other.pack.slug === pack.slug) continue;
+      for (const c of other.members) {
+        if (c.role?.id === m.role.id) {
+          crossNotes.push(`与「${other.pack.name}」的 ${c.r.mf.name} 同为${m.role.label}，同时安装需二选一`);
+        }
+      }
+    }
+  }
+  const uniqueCross = [...new Set(crossNotes)];
   writeFileSync(join(OUT, `modpack-${pack.slug}.md`), [
     `# ${pack.name}`,
     '',
@@ -688,6 +703,12 @@ for (const { pack, members } of packReports) {
     '',
     '> 「模型来源 / 记忆后端 / 语音朗读 / 权限策略 / 界面皮肤」这类插件会互相覆盖，',
     '> 所以一个包里只放一个；想换请在商店里单独安装并停用旧的。',
+    '',
+    '## 跨包安装提醒',
+    '',
+    uniqueCross.length > 0
+      ? uniqueCross.map((t) => `- ${t}`).join('\n')
+      : '与本整合包同时安装其他包时，没有独占角色冲突。',
     '',
   ].join('\n'));
 }
