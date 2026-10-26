@@ -28,23 +28,40 @@ DPMIDX v2 要解决三件事：
 | 偏移 | 长度 | 字段 | 说明 |
 |---:|---:|---|---|
 | 0 | 6 | `magic` | ASCII `DPMIDX` |
-| 6 | 1 | `magicVersion` | 当前为 `0x02` |
+| 6 | 1 | `magicVersion` | 当前为 `0x03`（v3 起支持署名元数据） |
 | 7 | 1 | **`kind`** | **`0` = 插件列表，`1` = 整合包**（见第 9 节） |
-| 8 | 4 | `version` | 头部版本，当前为 `2` |
+| 8 | 4 | `version` | 头部版本，当前为 `3` |
 | 12 | 4 | `count` | 记录数 |
 | 16 | 4 | `strCount` | 字符串表中的字符串数 |
 | 20 | 4 | `depsCount` | 依赖索引项总数 |
 | 24 | 4 | `strBytes` | 字符串表字节数 |
 | 28 | 4 | `depsBytes` | 依赖数组字节数（`= depsCount × 4`） |
-| 32 | 8 | `reserved` | 置 0，为将来扩展保留 |
+| 32 | 4 | `metaBytes` | 元数据 JSON 的字节数（v2 时此处置 0） |
+| 36 | 4 | `reserved` | 置 0 |
 
-随后三段依次排列：
+随后四段依次排列：
 
 ```
-[字符串表]  40                                   长度 strBytes
-[依赖数组]  40 + strBytes                        长度 depsBytes
-[记录区]    40 + strBytes + depsBytes            长度 count × 28
+[元数据]    40                                   长度 metaBytes
+[字符串表]  40 + metaBytes                       长度 strBytes
+[依赖数组]  40 + metaBytes + strBytes            长度 depsBytes
+[记录区]    40 + metaBytes + strBytes + depsBytes 长度 count × 28
 ```
+
+**元数据（v3 新增）**：UTF-8 JSON，字段均可选：
+
+```json
+{ "name": "插件表", "publisher": "云幻天",
+  "description": "…", "createdAt": "2026-10-26T00:00:00.000Z",
+  "certification": "certified" }
+```
+
+⚠️ `publisher` 是**署名**（作者名字），不是**证明**：任何文件都能自称作者。
+信任必须由消费端用签名或签发记录校验 —— 这也是为什么认证结果不写进文件本身。
+
+**向后兼容**：v2 文件的 `metaBytes` 位置是保留位（全 0），同一个读取路径对 v2
+自然得到 `metaBytes = 0`，不需要额外分支。读取方对 `magicVersion > 3` 必须拒绝，
+并给出「请更新插件商店」这类可操作的提示。
 
 **字符串表**：重复 `(u32 len, utf8 bytes)`，共 `strCount` 条。相同字符串只存一次（驻留）。
 
