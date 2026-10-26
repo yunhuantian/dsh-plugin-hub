@@ -18,6 +18,8 @@ interface CommonProps {
   api: RemoteApi;
   t: (key: string) => string;
   onChanged: () => void;
+  /** 条目在镜像库里时，可以跳到商店的完整详情页。 */
+  onOpenPlugin?: (name: string) => void;
 }
 
 /** 分块转 base64 —— 直接 spread 整个 Uint8Array 会在几百 KB 的文件上爆栈。 */
@@ -42,13 +44,14 @@ function formatLabel(source: ListSource, t: (k: string) => string): string {
   return t(FORMAT_LABEL[source.format] ?? 'src.format.dpmidx');
 }
 
-/** 来源条目的一张小卡片。 */
-function EntryCard({ entry, sourceId, api, t, onChanged }: {
+/** 来源条目的一张小卡片点进去就是详情。 */
+function EntryCard({ entry, sourceId, api, t, onChanged, onOpen }: {
   entry: ListEntry;
   sourceId: string;
   api: RemoteApi;
   t: (k: string) => string;
   onChanged: () => void;
+  onOpen: () => void;
 }): ReactNode {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +76,13 @@ function EntryCard({ entry, sourceId, api, t, onChanged }: {
   const artifact = (entry.flags & 0x01) !== 0;
 
   return (
-    <div className="dps-card">
+    <div
+      className="dps-card dps-card-clickable"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+    >
       <div className="dps-card-top">
         <span className="dps-icon-fallback" style={{ width: 44, height: 44, fontSize: 18 }}>
           {(entry.name || '?').charAt(0).toUpperCase()}
@@ -106,24 +115,154 @@ function EntryCard({ entry, sourceId, api, t, onChanged }: {
       {error !== null && <p className="dps-card-error">{error}</p>}
       <div className="dps-card-actions">
         {entry.installSpec !== null ? (
-          <button type="button" className="dps-btn dps-btn-primary dps-btn-sm" disabled={busy} onClick={() => void install()}>
+          <button
+            type="button"
+            className="dps-btn dps-btn-primary dps-btn-sm"
+            disabled={busy}
+            onClick={(e) => { e.stopPropagation(); void install(); }}
+          >
             {busy ? '…' : t('src.install')}
           </button>
         ) : entry.url !== '' ? (
-          <a className="dps-btn dps-btn-sm" href={entry.url} target="_blank" rel="noreferrer">{t('src.open')}</a>
+          <a
+            className="dps-btn dps-btn-sm"
+            href={entry.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {t('src.open')}
+          </a>
         ) : <span />}
       </div>
     </div>
   );
 }
 
+/**
+ * 单条目详情页。
+ *
+ * 列表里的条目不一定在本地镜像库里（很多是 GitHub 现搜出来的），
+ * 所以这里不假设有完整详情：先展示列表自带的信息，库里有时再给一个
+ * 「在商店中查看详情」的入口 —— 而不是点进去报错。
+ */
+function EntryDetail({ entry, sourceId, api, t, onBack, onChanged, onOpenPlugin }: {
+  entry: ListEntry;
+  sourceId: string;
+  api: RemoteApi;
+  t: (key: string) => string;
+  onBack: () => void;
+  onChanged: () => void;
+  onOpenPlugin?: (name: string) => void;
+}): ReactNode {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const install = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.installFromSource(sourceId, entry.name, getActor());
+      if (!r.ok) setError(r.message);
+      else onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = () => {
+    const cmd = entry.installSpec !== null ? `pnpm add ${entry.installSpec}` : `dsh plugin add ${entry.url}`;
+    void navigator.clipboard?.writeText(cmd).catch(() => undefined);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  const artifact = (entry.flags & 0x01) !== 0;
+  const certText = entry.cert === 'certified'
+    ? t('src.cert.certified')
+    : entry.cert === 'legacy' ? t('src.cert.legacy') : '—';
+
+  return (
+    <div className="dps-view">
+      <div>
+        <button type="button" className="dps-btn dps-btn-sm" onClick={onBack}>← {t('src.back')}</button>
+      </div>
+      <div className="dps-section dps-entry-detail">
+        <div className="dps-entry-head">
+          <span className="dps-icon-fallback" style={{ width: 52, height: 52, fontSize: 22 }}>
+            {(entry.name || '?').charAt(0).toUpperCase()}
+          </span>
+          <div className="dps-entry-title">
+            <h2 className="dps-entry-name">{entry.name}</h2>
+            <div className="dps-badges">
+              {entry.cert !== 'none' && (
+                <span className={`dps-badge dps-cert-${entry.cert}`}>
+                  ✅ {certText}
+                </span>
+              )}
+              {entry.category !== '' && <span className="dps-badge">{entry.category}</span>}
+              <span className={`dps-badge${artifact ? ' dps-badge-npm' : ''}`}>
+                {artifact ? t('src.artifact') : t('src.source')}
+              </span>
+            </div>
+          </div>
+        </div>
+        <p className="dps-entry-desc">{entry.description || '（暂无描述）'}</p>
+        {error !== null && <p className="dps-hint dps-bad">{error}</p>}
+        <div className="dps-entry-actions">
+          {entry.installSpec !== null && (
+            <button type="button" className="dps-btn dps-btn-primary dps-btn-sm" disabled={busy} onClick={() => void install()}>
+              {busy ? '…' : t('src.install')}
+            </button>
+          )}
+          {entry.url !== '' && (
+            <a className="dps-btn dps-btn-sm" href={entry.url} target="_blank" rel="noreferrer">{t('src.open')}</a>
+          )}
+          <button type="button" className="dps-btn dps-btn-sm" onClick={copy}>
+            {copied ? t('src.detail.copied') : t('src.detail.copy')}
+          </button>
+          {entry.inStore && onOpenPlugin && (
+            <button type="button" className="dps-btn dps-btn-sm" onClick={() => onOpenPlugin(entry.name)}>
+              {t('src.detail.store')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="dps-section">
+        <dl className="dps-kv">
+          <dt>{t('src.detail.repo')}</dt>
+          <dd>{entry.url !== '' ? <a href={entry.url} target="_blank" rel="noreferrer">{entry.url}</a> : '—'}</dd>
+          <dt>{t('src.detail.category')}</dt>
+          <dd>{entry.category !== '' ? entry.category : '—'}</dd>
+          <dt>{t('src.detail.version')}</dt>
+          <dd>{entry.currentVersion ?? entry.certVersion ?? '—'}</dd>
+          <dt>{t('src.detail.cert')}</dt>
+          <dd>
+            {certText}
+            {entry.certVersion !== null && entry.certVersion !== '' && ` · ${t('src.detail.certVersion')} ${entry.certVersion}`}
+          </dd>
+          <dt>{t('src.detail.deps')}</dt>
+          <dd>{entry.deps.length > 0 ? entry.deps.join(', ') : '—'}</dd>
+          <dt>{t('src.detail.spec')}</dt>
+          <dd><code>{entry.installSpec ?? '—'}</code></dd>
+        </dl>
+      </div>
+    </div>
+  );
+}
+
 /** 一个来源的条目网格（带搜索与加载更多）。 */
-function ListEntries({ api, source, t, onChanged }: CommonProps & { source: ListSource }): ReactNode {
+function ListEntries({ api, source, t, onChanged, onOpenPlugin }: CommonProps & { source: ListSource; onOpenPlugin?: (name: string) => void }): ReactNode {
   const [entries, setEntries] = useState<ListEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [active, setActive] = useState<ListEntry | null>(null);
 
   const load = useCallback(async (offset: number, q: string) => {
     setLoading(true);
@@ -143,6 +282,20 @@ function ListEntries({ api, source, t, onChanged }: CommonProps & { source: List
     const id = window.setTimeout(() => { void load(0, query); }, 220);
     return () => window.clearTimeout(id);
   }, [load, query]);
+
+  if (active !== null) {
+    return (
+      <EntryDetail
+        entry={active}
+        sourceId={source.id}
+        api={api}
+        t={t}
+        onBack={() => setActive(null)}
+        onChanged={onChanged}
+        onOpenPlugin={onOpenPlugin}
+      />
+    );
+  }
 
   return (
     <div className="dps-view">
@@ -172,7 +325,15 @@ function ListEntries({ api, source, t, onChanged }: CommonProps & { source: List
         <>
           <div className="dps-grid">
             {entries.map((e) => (
-              <EntryCard key={`${e.name}-${e.url}`} entry={e} sourceId={source.id} api={api} t={t} onChanged={onChanged} />
+              <EntryCard
+                key={`${e.name}-${e.url}`}
+                entry={e}
+                sourceId={source.id}
+                api={api}
+                t={t}
+                onChanged={onChanged}
+                onOpen={() => setActive(e)}
+              />
             ))}
           </div>
           {entries.length < total && (
@@ -336,7 +497,7 @@ function AddPanel({ api, t, expect, onDone }: {
 }
 
 /** 自动识别：内置爬取 + 任意来源的列表。 */
-export function AutoZone({ api, t, onChanged, renderBuiltin }: CommonProps & { renderBuiltin: () => ReactNode }): ReactNode {
+export function AutoZone({ api, t, onChanged, onOpenPlugin, renderBuiltin }: CommonProps & { renderBuiltin: () => ReactNode }): ReactNode {
   const [sources, setSources] = useState<ListSource[]>([]);
   const [selected, setSelected] = useState('builtin');
   const [adding, setAdding] = useState(false);
@@ -385,13 +546,13 @@ export function AutoZone({ api, t, onChanged, renderBuiltin }: CommonProps & { r
       {adding && <AddPanel api={api} t={t} expect={0} onDone={() => { setAdding(false); void reload(); onChanged(); }} />}
       {current === null
         ? <>{renderBuiltin()}{sources.length === 0 && <p className="dps-hint">{t('src.builtinHint')}</p>}</>
-        : <ListEntries api={api} t={t} source={current} onChanged={onChanged} />}
+        : <ListEntries api={api} t={t} source={current} onChanged={onChanged} onOpenPlugin={onOpenPlugin} />}
     </div>
   );
 }
 
 /** 认证列表：只有签发记录（provenance=certified）的列表。 */
-export function CertifiedZone({ api, t, onChanged }: CommonProps): ReactNode {
+export function CertifiedZone({ api, t, onChanged, onOpenPlugin }: CommonProps): ReactNode {
   const [sources, setSources] = useState<ListSource[]>([]);
   const [selected, setSelected] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -422,14 +583,14 @@ export function CertifiedZone({ api, t, onChanged }: CommonProps): ReactNode {
           <p className="dps-empty-hint">{t('src.empty.certifiedHint')}</p>
         </div>
       ) : (
-        <ListEntries api={api} t={t} source={current} onChanged={onChanged} />
+        <ListEntries api={api} t={t} source={current} onChanged={onChanged} onOpenPlugin={onOpenPlugin} />
       )}
     </div>
   );
 }
 
 /** 整合包：kind=1 的容器，只在本页读取。 */
-export function ModpackZone({ api, t, onChanged }: CommonProps): ReactNode {
+export function ModpackZone({ api, t, onChanged, onOpenPlugin }: CommonProps): ReactNode {
   const [sources, setSources] = useState<ListSource[]>([]);
   const [selected, setSelected] = useState('');
   const [adding, setAdding] = useState(false);
@@ -484,7 +645,7 @@ export function ModpackZone({ api, t, onChanged }: CommonProps): ReactNode {
       ) : (
         <>
           <p className="dps-hint">{t('src.modpackNote')} · {formatLabel(current, t)} · {current.entries} {t('src.entries')}</p>
-          <ListEntries api={api} t={t} source={current} onChanged={onChanged} />
+          <ListEntries api={api} t={t} source={current} onChanged={onChanged} onOpenPlugin={onOpenPlugin} />
         </>
       )}
     </div>

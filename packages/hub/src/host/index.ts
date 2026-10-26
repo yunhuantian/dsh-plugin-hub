@@ -1212,6 +1212,7 @@ export class PluginStoreService extends TypertRemoteService {
         repoKey: repoKeyOf(index.url(i)),
         installSpec: installSpecFor({ name, url: index.url(i) }),
         cert: certState,
+        inStore: this.db.getPlugin(name) !== undefined,
         certVersion: cert?.version ?? null,
         currentVersion: currentVersion === '' ? null : currentVersion,
       };

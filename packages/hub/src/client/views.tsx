@@ -2347,11 +2347,12 @@ export function StoreViewBody({ view, api, onOpen, onChanged, t }: { view: Store
         api={api}
         t={t}
         onChanged={onChanged}
+        onOpenPlugin={onOpen}
         renderBuiltin={() => <Discover api={api} onOpen={onOpen} onChanged={onChanged} t={t} />}
       />
     );
-    case 'certified': return <CertifiedZone api={api} t={t} onChanged={onChanged} />;
-    case 'modpack': return <ModpackZone api={api} t={t} onChanged={onChanged} />;
+    case 'certified': return <CertifiedZone api={api} t={t} onChanged={onChanged} onOpenPlugin={onOpen} />;
+    case 'modpack': return <ModpackZone api={api} t={t} onChanged={onChanged} onOpenPlugin={onOpen} />;
     case 'wiki': return <WikiExplorer api={api} onOpen={onOpen} t={t} />;
     case 'skill': return <SkillStore api={api} t={t} />;
     case 'installed': return <Installed api={api} onOpen={onOpen} t={t} />;

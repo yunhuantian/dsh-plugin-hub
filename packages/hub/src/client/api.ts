@@ -129,6 +129,8 @@ export interface ListEntry {
   installSpec: string | null;
   /** 版本级认证：certified 当前版本已认证 / legacy 有过认证 / none 未认证。 */
   cert: 'certified' | 'legacy' | 'none';
+  /** 是否在本地镜像库里（能打开商店完整详情）。 */
+  inStore: boolean;
   certVersion: string | null;
   currentVersion: string | null;
 }

@@ -583,3 +583,17 @@
 .dps-cert-certified { color: #2f9e44; }
 .dps-cert-legacy { color: #b8860b; }
 .dps-publisher { color: var(--dsw-alias-label-secondary); }
+
+/* ============ 列表条目详情 ============ */
+.dps-card-clickable { cursor: pointer; }
+.dps-card-clickable:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+.dps-entry-detail { gap: 12px; }
+.dps-entry-head { align-items: center; gap: 12px; display: flex; }
+.dps-entry-title { flex-direction: column; gap: 6px; display: flex; min-width: 0; }
+.dps-entry-name { color: var(--dsw-alias-label-primary); margin: 0; font-size: 18px; font-weight: 600; word-break: break-all; }
+.dps-entry-desc { color: var(--dsw-alias-label-secondary); margin: 0; font-size: 13px; line-height: 20px; }
+.dps-entry-actions { align-items: center; gap: 8px; display: flex; flex-wrap: wrap; }
+.dps-kv { grid-template-columns: 96px 1fr; gap: 8px 12px; margin: 0; display: grid; font-size: 13px; }
+.dps-kv dt { color: var(--dsw-alias-label-tertiary); }
+.dps-kv dd { color: var(--dsw-alias-label-primary); margin: 0; word-break: break-all; }
+.dps-kv code { background: var(--dsw-alias-interactive-bg-hover); border-radius: 6px; padding: 1px 5px; font-size: 12px; }

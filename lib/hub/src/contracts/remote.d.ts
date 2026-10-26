@@ -257,6 +257,7 @@ export declare const listEntry: z.ZodReadonly<z.ZodObject<{
         legacy: "legacy";
         none: "none";
     }>;
+    inStore: z.ZodBoolean;
     certVersion: z.ZodNullable<z.ZodString>;
     currentVersion: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>>;
