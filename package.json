@@ -141,6 +141,7 @@
     "README.md",
     "LICENSE",
     "docs/market-index-format.md",
+    "docs/build-list-and-pack.md",
     "scripts/build-market-index.mjs"
   ],
   "dsh": {
