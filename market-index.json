@@ -89,37 +89,17 @@
         }
       }
     },
-    "labels": {},
+    "labels": {
+      "certified": {
+        "title": {
+          "en": "Certified",
+          "zh": "已认证"
+        }
+      }
+    },
     "sortKeys": {}
   },
   "plugins": [
-    {
-      "name": "@anionex/dsh-vision-toolkit",
-      "title": {
-        "en": "@anionex/dsh-vision-toolkit",
-        "zh": "@anionex/dsh-vision-toolkit"
-      },
-      "description": {
-        "en": "DeepSeek Harness-native integration for agent-vision-toolkit: image Q&A, OCR, grounding, UI restoration, pixel diff, Artifacts, and Web UI.",
-        "zh": "DeepSeek Harness-native integration for agent-vision-toolkit: image Q&A, OCR, grounding, UI restoration, pixel diff, Artifacts, and Web UI."
-      },
-      "repository": {
-        "url": "https://github.com/Anionex/dsh-vision-toolkit"
-      },
-      "metadata": {
-        "category": "vision",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.48",
-          "publishTimestamp": 1792990678,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
     {
       "name": "@changfenhuang/dsh-genui",
       "title": {
@@ -135,7 +115,10 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -165,7 +148,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -193,39 +179,15 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.17.0",
           "publishTimestamp": 1792837048,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "@dhicoc/dsh-reverse-skill",
-      "title": {
-        "en": "@dhicoc/dsh-reverse-skill",
-        "zh": "@dhicoc/dsh-reverse-skill"
-      },
-      "description": {
-        "en": "Complete reverse-skill (88 skills) as a DeepSeek Harness Cordis plugin — reverse engineering, authorized pentesting and security research skill router pack.",
-        "zh": "Complete reverse-skill (88 skills) as a DeepSeek Harness Cordis plugin — reverse engineering, authorized pentesting and security research skill router pack."
-      },
-      "repository": {
-        "url": "https://github.com/dhicoc/dsh-reverse-skill"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "1.0.5",
-          "publishTimestamp": 1787388214,
           "source": {
             "type": "npm"
           }
@@ -248,40 +210,15 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.3.5",
           "publishTimestamp": 1790606793,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "@ericwang1358/dsh-daily-flashcard",
-      "title": {
-        "en": "@ericwang1358/dsh-daily-flashcard",
-        "zh": "@ericwang1358/dsh-daily-flashcard"
-      },
-      "description": {
-        "en": "StudyHub: turn your lecture slides into questions that each link back to their page; finish a round and see yourself getting it.",
-        "zh": "StudyHub: turn your lecture slides into questions that each link back to their page; finish a round and see yourself getting it."
-      },
-      "author": "ericwang1358",
-      "repository": {
-        "url": "https://github.com/EricWang1358/dsh-web-studyhub"
-      },
-      "metadata": {
-        "category": "memory",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "3.6.2",
-          "publishTimestamp": 1792870389,
           "source": {
             "type": "npm"
           }
@@ -303,7 +240,10 @@
       },
       "metadata": {
         "category": "memory",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -330,7 +270,10 @@
       },
       "metadata": {
         "category": "docs",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -357,7 +300,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -365,36 +311,6 @@
           "publishTimestamp": 1790766731,
           "source": {
             "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "@jingyi0605/codingns4dsh",
-      "title": {
-        "en": "@jingyi0605/codingns4dsh",
-        "zh": "@jingyi0605/codingns4dsh"
-      },
-      "description": {
-        "en": "为 DSH 集成多种编程 Agent、项目管理、智能助理与远程访问。",
-        "zh": "为 DSH 集成多种编程 Agent、项目管理、智能助理与远程访问。"
-      },
-      "repository": {
-        "url": "https://github.com/jingyi0605/Codingns4DSH"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.2.0-rc.3",
-          "publishTimestamp": 1791114528,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.0-rc.2 <=0.2.0-rc.2"
           }
         }
       ]
@@ -414,7 +330,10 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -442,7 +361,10 @@
       },
       "metadata": {
         "category": "vision",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -450,93 +372,6 @@
           "publishTimestamp": 1792770154,
           "source": {
             "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "@ljwei-stak/dsh-model-router",
-      "title": {
-        "en": "@ljwei-stak/dsh-model-router",
-        "zh": "@ljwei-stak/dsh-model-router"
-      },
-      "description": {
-        "en": "Model Router for official DeepSeek Harness Desktop: cost-aware task routing, dependent work packages and official vendor CLI discovery, installation and executi",
-        "zh": "Model Router for official DeepSeek Harness Desktop: cost-aware task routing, dependent work packages and official vendor CLI discovery, installation and executi"
-      },
-      "repository": {
-        "url": "https://github.com/Alice-Marx/dsh-model-router"
-      },
-      "metadata": {
-        "category": "usage",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.25.5",
-          "publishTimestamp": 1792999622,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "@michengai/dsh-agency-agents",
-      "title": {
-        "en": "@michengai/dsh-agency-agents",
-        "zh": "@michengai/dsh-agency-agents"
-      },
-      "description": {
-        "en": "DSH Agency Agents — 为 DeepSeek Harness 提供 331 名可召唤的专业智能体 · 331 summonable domain experts for DeepSeek Harness",
-        "zh": "DSH Agency Agents — 为 DeepSeek Harness 提供 331 名可召唤的专业智能体 · 331 summonable domain experts for DeepSeek Harness"
-      },
-      "repository": {
-        "url": "https://github.com/MichengAI/dsh-agency-agents"
-      },
-      "metadata": {
-        "category": "agent",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "1.2.15",
-          "publishTimestamp": 1793004263,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.0-rc.1 <0.3.0-0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "@michengai/dsh-archive-manager",
-      "title": {
-        "en": "@michengai/dsh-archive-manager",
-        "zh": "@michengai/dsh-archive-manager"
-      },
-      "description": {
-        "en": "归档、恢复、收藏和永久删除会话，并诊断损坏的会话日志。 · Archive, restore, favorite, and permanently delete sessions, and diagnose damaged session logs.",
-        "zh": "归档、恢复、收藏和永久删除会话，并诊断损坏的会话日志。 · Archive, restore, favorite, and permanently delete sessions, and diagnose damaged session logs."
-      },
-      "repository": {
-        "url": "https://github.com/MichengAI/dsh-archive-manager"
-      },
-      "metadata": {
-        "category": "tool",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "1.1.16",
-          "publishTimestamp": 1793010133,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.0-rc.1 <0.3.0-0"
           }
         }
       ]
@@ -556,42 +391,15 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "1.1.49",
           "publishTimestamp": 1792864561,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.0-rc.1 <0.3.0-0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "@michengai/dsh-skills-manager",
-      "title": {
-        "en": "@michengai/dsh-skills-manager",
-        "zh": "@michengai/dsh-skills-manager"
-      },
-      "description": {
-        "en": "DSH Skills Manager — 在 DeepSeek Harness 中统一加载并安全管理本机 Agent Skills · Load and safely manage local Agent Skills in DSH",
-        "zh": "DSH Skills Manager — 在 DeepSeek Harness 中统一加载并安全管理本机 Agent Skills · Load and safely manage local Agent Skills in DSH"
-      },
-      "repository": {
-        "url": "https://github.com/MichengAI/dsh-skills-manager"
-      },
-      "metadata": {
-        "category": "agent",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "1.2.20",
-          "publishTimestamp": 1792994604,
           "source": {
             "type": "npm"
           },
@@ -617,7 +425,10 @@
       },
       "metadata": {
         "category": "agent",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -644,7 +455,10 @@
       },
       "metadata": {
         "category": "other",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -671,7 +485,10 @@
       },
       "metadata": {
         "category": "chat",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -699,39 +516,15 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "1.17.1",
           "publishTimestamp": 1792902356,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "@shengsheng/dsh-taskboard",
-      "title": {
-        "en": "@shengsheng/dsh-taskboard",
-        "zh": "@shengsheng/dsh-taskboard"
-      },
-      "description": {
-        "en": "Native local project taskboard bundle for DeepSeek Harness",
-        "zh": "Native local project taskboard bundle for DeepSeek Harness"
-      },
-      "repository": {
-        "url": "https://github.com/shengsheng90/DSH-taskboard"
-      },
-      "metadata": {
-        "category": "chat",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.9",
-          "publishTimestamp": 1791876907,
           "source": {
             "type": "npm"
           }
@@ -753,7 +546,10 @@
       },
       "metadata": {
         "category": "notify",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -780,7 +576,10 @@
       },
       "metadata": {
         "category": "notify",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -808,7 +607,10 @@
       },
       "metadata": {
         "category": "notify",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -835,7 +637,10 @@
       },
       "metadata": {
         "category": "usage",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -862,7 +667,10 @@
       },
       "metadata": {
         "category": "data",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -890,7 +698,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -917,7 +728,10 @@
       },
       "metadata": {
         "category": "chat",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -944,7 +758,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -971,7 +788,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -998,40 +818,15 @@
       },
       "metadata": {
         "category": "docs",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.1.0-rc.13",
           "publishTimestamp": 1791320605,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "aegis",
-      "title": {
-        "en": "aegis",
-        "zh": "aegis"
-      },
-      "description": {
-        "en": "Make AI coding agents architecture-aware: baseline-first, evidence-verified, drift-checked, and safe across long tasks.",
-        "zh": "Make AI coding agents architecture-aware: baseline-first, evidence-verified, drift-checked, and safe across long tasks."
-      },
-      "author": "Quildreen Motta",
-      "repository": {
-        "url": "https://github.com/GanyuanRan/Aegis"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.0",
-          "publishTimestamp": 1339289317,
           "source": {
             "type": "npm"
           }
@@ -1054,7 +849,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1082,7 +880,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1109,7 +910,10 @@
       },
       "metadata": {
         "category": "agent",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1140,7 +944,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1168,7 +975,10 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1195,66 +1005,15 @@
       },
       "metadata": {
         "category": "docs",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "2.5.0",
           "publishTimestamp": 1792938646,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-at-file",
-      "title": {
-        "en": "dsh-at-file",
-        "zh": "dsh-at-file"
-      },
-      "description": {
-        "en": "Codex-style @path references for the DeepSeek Harness web GUI: search workspace paths without injecting file content",
-        "zh": "Codex-style @path references for the DeepSeek Harness web GUI: search workspace paths without injecting file content"
-      },
-      "repository": {
-        "url": "https://github.com/FSMargoo/dsh-at-file"
-      },
-      "metadata": {
-        "category": "tool",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.6.3",
-          "publishTimestamp": 1787153426,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-auto-memory",
-      "title": {
-        "en": "dsh-auto-memory",
-        "zh": "dsh-auto-memory"
-      },
-      "description": {
-        "en": "Claude Code style auto-memory plugin for DeepSeek Harness: typed memory files + MEMORY.md index auto-injected into the system prompt",
-        "zh": "Claude Code style auto-memory plugin for DeepSeek Harness: typed memory files + MEMORY.md index auto-injected into the system prompt"
-      },
-      "repository": {
-        "url": "https://github.com/AskTheWay/dsh-auto-memory"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "1.2.0",
-          "publishTimestamp": 1793018102,
           "source": {
             "type": "npm"
           }
@@ -1276,7 +1035,10 @@
       },
       "metadata": {
         "category": "vision",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1284,36 +1046,6 @@
           "publishTimestamp": 1791873248,
           "source": {
             "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-bili-scroll",
-      "title": {
-        "en": "dsh-bili-scroll",
-        "zh": "dsh-bili-scroll"
-      },
-      "description": {
-        "en": "DSH 插件：每天替你刷一轮 B站 —— 读字幕挑出值得的、写一份日报，值得的就 @ 你",
-        "zh": "DSH 插件：每天替你刷一轮 B站 —— 读字幕挑出值得的、写一份日报，值得的就 @ 你"
-      },
-      "repository": {
-        "url": "https://github.com/c1overzz/dsh-bili-scroll"
-      },
-      "metadata": {
-        "category": "vision",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "2.2.2",
-          "publishTimestamp": 1793018974,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.1.7-rc.1"
           }
         }
       ]
@@ -1334,7 +1066,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1362,7 +1097,10 @@
       },
       "metadata": {
         "category": "chat",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1393,7 +1131,10 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1420,7 +1161,10 @@
       },
       "metadata": {
         "category": "chat",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1448,39 +1192,15 @@
       },
       "metadata": {
         "category": "vision",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.2.0-alpha.10",
           "publishTimestamp": 1792752897,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-codex-effort-slider",
-      "title": {
-        "en": "dsh-codex-effort-slider",
-        "zh": "dsh-codex-effort-slider"
-      },
-      "description": {
-        "en": "Codex 风格的推理等级滑条：把 DSH 输入框工具行的推理等级档位换成一条可拖动的连续滑条 / A Codex-style reasoning-effort slider for DeepSeek Harness",
-        "zh": "Codex 风格的推理等级滑条：把 DSH 输入框工具行的推理等级档位换成一条可拖动的连续滑条 / A Codex-style reasoning-effort slider for DeepSeek Harness"
-      },
-      "repository": {
-        "url": "https://github.com/Microqian2th/dsh-codex-effort-slider"
-      },
-      "metadata": {
-        "category": "ui",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "1.1.3",
-          "publishTimestamp": 1792281566,
           "source": {
             "type": "npm"
           }
@@ -1503,7 +1223,10 @@
       },
       "metadata": {
         "category": "vision",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1530,7 +1253,10 @@
       },
       "metadata": {
         "category": "agent",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1558,7 +1284,10 @@
       },
       "metadata": {
         "category": "usage",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1566,64 +1295,6 @@
           "publishTimestamp": 1792961114,
           "source": {
             "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-connect-workbuddy",
-      "title": {
-        "en": "dsh-connect-workbuddy",
-        "zh": "dsh-connect-workbuddy"
-      },
-      "description": {
-        "en": "把本机登录的 WorkBuddy 模型（国内版与国际版）接入 DeepSeek Harness：每次刷新按上游目录自动读取每个模型的积分倍率，支持逐模型图片输入开关、多账号切换与账号池自动换号，并提供每日签到、卡片与输入框里的胶囊积分读数等只读积分概览。",
-        "zh": "把本机登录的 WorkBuddy 模型（国内版与国际版）接入 DeepSeek Harness：每次刷新按上游目录自动读取每个模型的积分倍率，支持逐模型图片输入开关、多账号切换与账号池自动换号，并提供每日签到、卡片与输入框里的胶囊积分读数等只读积分概览。"
-      },
-      "author": "dingminhua",
-      "repository": {
-        "url": "https://github.com/dingminhua/dsh-connect-workbuddy"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "5.12.1",
-          "publishTimestamp": 1793019409,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-cost-meter",
-      "title": {
-        "en": "dsh-cost-meter",
-        "zh": "dsh-cost-meter"
-      },
-      "description": {
-        "en": "DeepSeek Harness 会话费用统计插件:本会话成本、当日费用、历史记录与官方价格同步,支持多厂商多模型价格计费(内置 170+ 模型 ID 价格目录与自动匹配)、主流 Coding Plan 订阅额度查询与显示(14 家,含 WorkBuddy 官方积分、OpenDesign 工作区查询、含小米 MiMo ",
-        "zh": "DeepSeek Harness 会话费用统计插件:本会话成本、当日费用、历史记录与官方价格同步,支持多厂商多模型价格计费(内置 170+ 模型 ID 价格目录与自动匹配)、主流 Coding Plan 订阅额度查询与显示(14 家,含 WorkBuddy 官方积分、OpenDesign 工作区查询、含小米 MiMo "
-      },
-      "repository": {
-        "url": "https://github.com/Han-1413141/dsh-cost-meter"
-      },
-      "metadata": {
-        "category": "usage",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "1.9.41",
-          "publishTimestamp": 1792987849,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.0-rc.1 <0.3.0-0"
           }
         }
       ]
@@ -1643,7 +1314,10 @@
       },
       "metadata": {
         "category": "docs",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1674,40 +1348,15 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.2.0",
           "publishTimestamp": 1792736038,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-dafeiyu",
-      "title": {
-        "en": "dsh-dafeiyu",
-        "zh": "dsh-dafeiyu"
-      },
-      "description": {
-        "en": "A desktop-native BigFish companion driven by DeepSeek Harness session events.",
-        "zh": "A desktop-native BigFish companion driven by DeepSeek Harness session events."
-      },
-      "author": "QCYTSN",
-      "repository": {
-        "url": "https://github.com/QCYTSN/dsh-dafeiyu"
-      },
-      "metadata": {
-        "category": "agent",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.19",
-          "publishTimestamp": 1792993929,
           "source": {
             "type": "npm"
           }
@@ -1729,7 +1378,10 @@
       },
       "metadata": {
         "category": "usage",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1756,7 +1408,10 @@
       },
       "metadata": {
         "category": "vision",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1786,154 +1441,15 @@
       },
       "metadata": {
         "category": "memory",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.23.1",
           "publishTimestamp": 1792878440,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-dream-skin",
-      "title": {
-        "en": "dsh-dream-skin",
-        "zh": "dsh-dream-skin"
-      },
-      "description": {
-        "en": "DeepSeek Harness 换肤插件（Dream Skin for DSH）：8 套 iOS / Linear 式清透冷调的高质感主题 + 弥散光壁纸 + 每皮肤智能背景 + 强调色 + 主题包分享，把换肤做成材质与配色克制的高级感工艺，而非贴图。Works in native DSH Web and third",
-        "zh": "DeepSeek Harness 换肤插件（Dream Skin for DSH）：8 套 iOS / Linear 式清透冷调的高质感主题 + 弥散光壁纸 + 每皮肤智能背景 + 强调色 + 主题包分享，把换肤做成材质与配色克制的高级感工艺，而非贴图。Works in native DSH Web and third"
-      },
-      "author": "dsh-dream-skin contributors",
-      "repository": {
-        "url": "https://github.com/RevolutionLA/dsh-dream-skin"
-      },
-      "metadata": {
-        "category": "ui",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "10.26.1",
-          "publishTimestamp": 1792991323,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-ego-browser",
-      "title": {
-        "en": "dsh-ego-browser",
-        "zh": "dsh-ego-browser"
-      },
-      "description": {
-        "en": "ego-browser (ego-lite) integration plugin for DSH: structured browser-automation tools (30+ ego_*) that drive the vendored ego runtime through ctx.subprocess, p",
-        "zh": "ego-browser (ego-lite) integration plugin for DSH: structured browser-automation tools (30+ ego_*) that drive the vendored ego runtime through ctx.subprocess, p"
-      },
-      "repository": {
-        "url": "https://github.com/Fisfzy/dsh-ego-browser"
-      },
-      "metadata": {
-        "category": "agent",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.9.3",
-          "publishTimestamp": 1793014967,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-eval-control",
-      "title": {
-        "en": "dsh-eval-control",
-        "zh": "dsh-eval-control"
-      },
-      "description": {
-        "en": "DSH plugin for aeval evaluation control and realtime, projection-based personal trajectory analytics.",
-        "zh": "DSH plugin for aeval evaluation control and realtime, projection-based personal trajectory analytics."
-      },
-      "repository": {
-        "url": "https://github.com/xyrrrrr-r/dsh-eval-control"
-      },
-      "metadata": {
-        "category": "data",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.5.0",
-          "publishTimestamp": 1793006843,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.1.7-alpha.1 <0.1.8-0 || >=0.1.8-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-game-material-master",
-      "title": {
-        "en": "dsh-game-material-master",
-        "zh": "dsh-game-material-master"
-      },
-      "description": {
-        "en": "游戏素材大师：DSH 插件，包含八方向图生成、图片生成、序列帧生成、45° 地图编辑器、俯视地图编辑器、音乐生成编辑、音效生成七个正式模块，以及实验性的骨骼动画生成。对话工具面只注册一个 game_material（按需读手册）；45° 与俯视两套地图编辑器全本地零计费（等距 2:1 / A2 自动连接 / 多格物件 ",
-        "zh": "游戏素材大师：DSH 插件，包含八方向图生成、图片生成、序列帧生成、45° 地图编辑器、俯视地图编辑器、音乐生成编辑、音效生成七个正式模块，以及实验性的骨骼动画生成。对话工具面只注册一个 game_material（按需读手册）；45° 与俯视两套地图编辑器全本地零计费（等距 2:1 / A2 自动连接 / 多格物件 "
-      },
-      "repository": {
-        "url": "https://github.com/universe-st/dsh-game-material-master"
-      },
-      "metadata": {
-        "category": "vision",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.11.0",
-          "publishTimestamp": 1792989159,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.0-rc.2 <0.3.0-0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-git-memory",
-      "title": {
-        "en": "dsh-git-memory",
-        "zh": "dsh-git-memory"
-      },
-      "description": {
-        "en": "A local Git-backed long-term memory bundle for DeepSeek Harness",
-        "zh": "A local Git-backed long-term memory bundle for DeepSeek Harness"
-      },
-      "repository": {
-        "url": "https://github.com/seriousz158/dsh-memory"
-      },
-      "metadata": {
-        "category": "memory",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.8.1",
-          "publishTimestamp": 1787537703,
           "source": {
             "type": "npm"
           }
@@ -1956,7 +1472,10 @@
       },
       "metadata": {
         "category": "chat",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1984,7 +1503,10 @@
       },
       "metadata": {
         "category": "agent",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -1995,67 +1517,6 @@
           },
           "engines": {
             "dsh": ">=0.2.1-0 <0.3.0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-intelligent-ui",
-      "title": {
-        "en": "dsh-intelligent-ui",
-        "zh": "dsh-intelligent-ui"
-      },
-      "description": {
-        "en": "DSH 原生交互式回答：智能聊天与按需技能。",
-        "zh": "DSH 原生交互式回答：智能聊天与按需技能。"
-      },
-      "author": "yunyv",
-      "repository": {
-        "url": "https://github.com/gulagala001/dsh-intelligent-ui"
-      },
-      "metadata": {
-        "category": "data",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.1",
-          "publishTimestamp": 1792229159,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.1-rc.1 <0.3.0-0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-mattpocock-skills-deck",
-      "title": {
-        "en": "dsh-mattpocock-skills-deck",
-        "zh": "dsh-mattpocock-skills-deck"
-      },
-      "description": {
-        "en": "🌹安装即自带mattpocock/skills v1.3.1的27个工程与效率技能，无需手动装技能。520亿token打造本插件，在原始技能之上提供10倍的开发效率，也能帮助新手更快上手该技能套件。支持 GitHub 与 GitLab 的 issue；本地 Markdown 为预览版。感谢您的使用和支持💗",
-        "zh": "🌹安装即自带mattpocock/skills v1.3.1的27个工程与效率技能，无需手动装技能。520亿token打造本插件，在原始技能之上提供10倍的开发效率，也能帮助新手更快上手该技能套件。支持 GitHub 与 GitLab 的 issue；本地 Markdown 为预览版。感谢您的使用和支持💗"
-      },
-      "repository": {
-        "url": "https://github.com/FeatherHunter/dsh-mattpocock-skills-deck"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "1.9.0-beta.25",
-          "publishTimestamp": 1793020112,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.0-rc.2"
           }
         }
       ]
@@ -2075,7 +1536,10 @@
       },
       "metadata": {
         "category": "vision",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2102,7 +1566,10 @@
       },
       "metadata": {
         "category": "memory",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2113,33 +1580,6 @@
           },
           "engines": {
             "dsh": ">=0.2.0-rc.2 <0.2.1-0 || >=0.2.1-rc.1 <0.3.0-0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-mobile",
-      "title": {
-        "en": "dsh-mobile",
-        "zh": "dsh-mobile"
-      },
-      "description": {
-        "en": "DeepSeek Harness 移动端适配与安全访问插件，支持局域网、远程连接、Android App 和手机浏览器。",
-        "zh": "DeepSeek Harness 移动端适配与安全访问插件，支持局域网、远程连接、Android App 和手机浏览器。"
-      },
-      "repository": {
-        "url": "https://github.com/saya-ch/dsh-mobile"
-      },
-      "metadata": {
-        "category": "tool",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.6.18",
-          "publishTimestamp": 1793002180,
-          "source": {
-            "type": "npm"
           }
         }
       ]
@@ -2159,7 +1599,10 @@
       },
       "metadata": {
         "category": "hub",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2186,7 +1629,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2214,69 +1660,15 @@
       },
       "metadata": {
         "category": "chat",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.8.8",
           "publishTimestamp": 1792825002,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-opencode-go",
-      "title": {
-        "en": "dsh-opencode-go",
-        "zh": "dsh-opencode-go"
-      },
-      "description": {
-        "en": "OpenCode Go model provider and settings UI for DeepSeek Harness",
-        "zh": "OpenCode Go model provider and settings UI for DeepSeek Harness"
-      },
-      "repository": {
-        "url": "https://github.com/Duskriver/dsh-opencode-go"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.24",
-          "publishTimestamp": 1792089970,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.1.5-rc.1"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-openwrite",
-      "title": {
-        "en": "dsh-openwrite",
-        "zh": "dsh-openwrite"
-      },
-      "description": {
-        "en": "OpenWrite 长篇小说领域后端接入 DeepSeek Harness：统一创作 Agent 预设 + 原生创作工作台",
-        "zh": "OpenWrite 长篇小说领域后端接入 DeepSeek Harness：统一创作 Agent 预设 + 原生创作工作台"
-      },
-      "repository": {
-        "url": "https://github.com/LiPu-jpg/Openwrite"
-      },
-      "metadata": {
-        "category": "docs",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.2.26",
-          "publishTimestamp": 1793018920,
           "source": {
             "type": "npm"
           }
@@ -2298,7 +1690,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2309,33 +1704,6 @@
           },
           "engines": {
             "dsh": "^0.2.0-rc.2"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-our-free-model",
-      "title": {
-        "en": "dsh-our-free-model",
-        "zh": "dsh-our-free-model"
-      },
-      "description": {
-        "en": "Our Free Model — 在 dsh 里装上这个插件即可，无需登录、注册或填 API Key，就能使用包括 DeepSeek V4.1 Flash、Kimi K3 在内的前沿模型，桌面端另有 EAC 协付渠道；2.0 起接入 LobsterAI、Qoder、TRAE、Cline、Loomy、Raccoon、Mi",
-        "zh": "Our Free Model — 在 dsh 里装上这个插件即可，无需登录、注册或填 API Key，就能使用包括 DeepSeek V4.1 Flash、Kimi K3 在内的前沿模型，桌面端另有 EAC 协付渠道；2.0 起接入 LobsterAI、Qoder、TRAE、Cline、Loomy、Raccoon、Mi"
-      },
-      "repository": {
-        "url": "https://github.com/Ebony-Vinyl/dsh-our-free-model"
-      },
-      "metadata": {
-        "category": "usage",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "2.1.0",
-          "publishTimestamp": 1791738621,
-          "source": {
-            "type": "npm"
           }
         }
       ]
@@ -2355,7 +1723,10 @@
       },
       "metadata": {
         "category": "chat",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2382,7 +1753,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2410,7 +1784,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2421,33 +1798,6 @@
           },
           "engines": {
             "dsh": ">=0.1.7-rc.2 <0.3.0-0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-plugin-subscriptions",
-      "title": {
-        "en": "dsh-plugin-subscriptions",
-        "zh": "dsh-plugin-subscriptions"
-      },
-      "description": {
-        "en": "Use ChatGPT (Codex), Claude, Grok (X Premium), GitHub Copilot, and Google Antigravity subscriptions as DeepSeek Harness LLM providers, with OAuth login from the",
-        "zh": "Use ChatGPT (Codex), Claude, Grok (X Premium), GitHub Copilot, and Google Antigravity subscriptions as DeepSeek Harness LLM providers, with OAuth login from the"
-      },
-      "repository": {
-        "url": "https://github.com/V1ki/dsh-plugin-subscriptions"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.9.11",
-          "publishTimestamp": 1793005316,
-          "source": {
-            "type": "npm"
           }
         }
       ]
@@ -2467,7 +1817,10 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2497,7 +1850,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2524,66 +1880,15 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "1.0.1",
           "publishTimestamp": 1787244889,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-profile-tavern",
-      "title": {
-        "en": "dsh-profile-tavern",
-        "zh": "dsh-profile-tavern"
-      },
-      "description": {
-        "en": "DSH Tavern: standalone tavern Profile bundle",
-        "zh": "DSH Tavern: standalone tavern Profile bundle"
-      },
-      "repository": {
-        "url": "https://github.com/flizzywine/dsh-tavern"
-      },
-      "metadata": {
-        "category": "chat",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "3.1.3",
-          "publishTimestamp": 1792696294,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-qq-bridge",
-      "title": {
-        "en": "dsh-qq-bridge",
-        "zh": "dsh-qq-bridge"
-      },
-      "description": {
-        "en": "通到 QQ：DSH 里的 AI 伙伴和 QQ 双向互通 —— 它说完话自动发到 QQ，你在 QQ 里说的话自动转进 DSH。走 OneBot 11 HTTP（SnowLuma / NapCat 都行）。",
-        "zh": "通到 QQ：DSH 里的 AI 伙伴和 QQ 双向互通 —— 它说完话自动发到 QQ，你在 QQ 里说的话自动转进 DSH。走 OneBot 11 HTTP（SnowLuma / NapCat 都行）。"
-      },
-      "repository": {
-        "url": "https://github.com/Yuuyuko-uu/dsh-qq-bridge"
-      },
-      "metadata": {
-        "category": "notify",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.3",
-          "publishTimestamp": 1787042738,
           "source": {
             "type": "npm"
           }
@@ -2605,7 +1910,10 @@
       },
       "metadata": {
         "category": "agent",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2633,7 +1941,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2661,7 +1972,10 @@
       },
       "metadata": {
         "category": "agent",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2672,36 +1986,6 @@
           },
           "engines": {
             "dsh": ">=0.1.6-0 <0.2.0 || >=0.2.0-0 <0.3.0 || >=0.2.1-0 <0.3.0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-rewind-plugin",
-      "title": {
-        "en": "dsh-rewind-plugin",
-        "zh": "dsh-rewind-plugin"
-      },
-      "description": {
-        "en": "In-window conversation rewind with workspace file restore · 同窗口内对话回退并可还原工作区文件",
-        "zh": "In-window conversation rewind with workspace file restore · 同窗口内对话回退并可还原工作区文件"
-      },
-      "repository": {
-        "url": "https://github.com/SiriLee/dsh-rewind"
-      },
-      "metadata": {
-        "category": "chat",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.19.1",
-          "publishTimestamp": 1793012375,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.2.1-rc.1 <0.3.0-0"
           }
         }
       ]
@@ -2721,7 +2005,10 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2752,7 +2039,10 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2779,39 +2069,15 @@
       },
       "metadata": {
         "category": "chat",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.5.4",
           "publishTimestamp": 1792912537,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-tokenledger",
-      "title": {
-        "en": "dsh-tokenledger",
-        "zh": "dsh-tokenledger"
-      },
-      "description": {
-        "en": "Token usage accounting for DeepSeek Harness, attributed to the relay site that served each request — no configuration, no credentials",
-        "zh": "Token usage accounting for DeepSeek Harness, attributed to the relay site that served each request — no configuration, no credentials"
-      },
-      "repository": {
-        "url": "https://github.com/zh667/TokenLedger"
-      },
-      "metadata": {
-        "category": "usage",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.0",
-          "publishTimestamp": 1786798698,
           "source": {
             "type": "npm"
           }
@@ -2833,7 +2099,10 @@
       },
       "metadata": {
         "category": "docs",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2863,7 +2132,10 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2894,40 +2166,15 @@
       },
       "metadata": {
         "category": "docs",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "0.3.7",
           "publishTimestamp": 1791449118,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "dsh-video-skin",
-      "title": {
-        "en": "dsh-video-skin",
-        "zh": "dsh-video-skin"
-      },
-      "description": {
-        "en": "DSH 视频皮肤：一段短片循环铺成整个界面的聊天背景（无声、可调透明度），另一段做有声的开机动画（片尾交叉溶解进界面、点击画面随时跳过）。零依赖。",
-        "zh": "DSH 视频皮肤：一段短片循环铺成整个界面的聊天背景（无声、可调透明度），另一段做有声的开机动画（片尾交叉溶解进界面、点击画面随时跳过）。零依赖。"
-      },
-      "author": "Something11235",
-      "repository": {
-        "url": "https://github.com/Something11235/dsh-video-skin"
-      },
-      "metadata": {
-        "category": "ui",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.5",
-          "publishTimestamp": 1792981827,
           "source": {
             "type": "npm"
           }
@@ -2949,7 +2196,10 @@
       },
       "metadata": {
         "category": "vision",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -2980,7 +2230,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -3007,7 +2260,10 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -3037,7 +2293,10 @@
       },
       "metadata": {
         "category": "tool",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -3065,7 +2324,10 @@
       },
       "metadata": {
         "category": "usage",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -3076,92 +2338,6 @@
           },
           "engines": {
             "dsh": ">=0.1.5-rc.1 <0.3.0"
-          }
-        }
-      ]
-    },
-    {
-      "name": "eac-design-world",
-      "title": {
-        "en": "eac-design-world",
-        "zh": "eac-design-world"
-      },
-      "description": {
-        "en": "EAC design world: autonomous video production for DeepSeek Harness",
-        "zh": "EAC design world: autonomous video production for DeepSeek Harness"
-      },
-      "author": "Ebony-Vinyl",
-      "repository": {
-        "url": "https://github.com/Ebony-Vinyl/EAC-design-world"
-      },
-      "metadata": {
-        "category": "vision",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.5.0",
-          "publishTimestamp": 1792780825,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "managed-agents",
-      "title": {
-        "en": "managed-agents",
-        "zh": "managed-agents"
-      },
-      "description": {
-        "en": "Local-first, self-hosted AI agent runtime with Claude Managed Agents-style APIs, sandboxed sessions, memory, tools, audit, replay, and a local Console.",
-        "zh": "Local-first, self-hosted AI agent runtime with Claude Managed Agents-style APIs, sandboxed sessions, memory, tools, audit, replay, and a local Console."
-      },
-      "repository": {
-        "url": "https://github.com/sandbaseai/sandbase-harness"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.0.1",
-          "publishTimestamp": 1785388190,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "memory-eternal",
-      "title": {
-        "en": "memory-eternal",
-        "zh": "memory-eternal"
-      },
-      "description": {
-        "en": "记忆核心（Memory Eternal）：自研的 DeepSeek Harness 记忆插件，不移植任何既有记忆框架——对话结束后自动沉淀知识卡到本地 Markdown Vault（自研去重、自研 CJK 检索、可 git 管理），设置页提供图形化知识库（统计 / 搜索 / 知识图谱 + 侧边栏一键弹窗），Agent ",
-        "zh": "记忆核心（Memory Eternal）：自研的 DeepSeek Harness 记忆插件，不移植任何既有记忆框架——对话结束后自动沉淀知识卡到本地 Markdown Vault（自研去重、自研 CJK 检索、可 git 管理），设置页提供图形化知识库（统计 / 搜索 / 知识图谱 + 侧边栏一键弹窗），Agent "
-      },
-      "author": "EternalNight996",
-      "repository": {
-        "url": "https://github.com/EternalNight996/memory-eternal"
-      },
-      "metadata": {
-        "category": "memory",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.18.2",
-          "publishTimestamp": 1793018353,
-          "source": {
-            "type": "npm"
-          },
-          "engines": {
-            "dsh": ">=0.1.5-alpha.2 <0.3.0-0"
           }
         }
       ]
@@ -3181,7 +2357,10 @@
       },
       "metadata": {
         "category": "memory",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
@@ -3208,39 +2387,15 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "2.50.1",
           "publishTimestamp": 1792902544,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "my-app",
-      "title": {
-        "en": "my-app",
-        "zh": "my-app"
-      },
-      "description": {
-        "en": "面向金融与产业研究的一屏式实时行情大屏：A股/港股/美股指数、大宗商品、美债收益率、板块热点、主力资金流、7×24 快讯、产业链自选股、AI 大模型 Token 追踪。A real-time market research cockpit on a single screen: CN/HK/US indices, co",
-        "zh": "面向金融与产业研究的一屏式实时行情大屏：A股/港股/美股指数、大宗商品、美债收益率、板块热点、主力资金流、7×24 快讯、产业链自选股、AI 大模型 Token 追踪。A real-time market research cockpit on a single screen: CN/HK/US indices, co"
-      },
-      "repository": {
-        "url": "https://github.com/theBigGavin/marketingdashboard"
-      },
-      "metadata": {
-        "category": "usage",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.0",
-          "publishTimestamp": 1369942258,
           "source": {
             "type": "npm"
           }
@@ -3262,39 +2417,15 @@
       },
       "metadata": {
         "category": "ui",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "1.2.6",
           "publishTimestamp": 1792497775,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "pi2dsh",
-      "title": {
-        "en": "pi2dsh",
-        "zh": "pi2dsh"
-      },
-      "description": {
-        "en": "Bridge the Pi and DeepSeek Harness ecosystems: a general Pi Host ABI that runs unmodified Pi extensions as native DSH plugins, with compatibility inspection and",
-        "zh": "Bridge the Pi and DeepSeek Harness ecosystems: a general Pi Host ABI that runs unmodified Pi extensions as native DSH plugins, with compatibility inspection and"
-      },
-      "repository": {
-        "url": "https://github.com/weijiafu14/pi2dsh"
-      },
-      "metadata": {
-        "category": "dev",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.27.1",
-          "publishTimestamp": 1793009075,
           "source": {
             "type": "npm"
           }
@@ -3316,39 +2447,15 @@
       },
       "metadata": {
         "category": "dev",
-        "keywords": []
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
       },
       "versions": [
         {
           "version": "1.3.0",
           "publishTimestamp": 1791871831,
-          "source": {
-            "type": "npm"
-          }
-        }
-      ]
-    },
-    {
-      "name": "whale-girl",
-      "title": {
-        "en": "whale-girl",
-        "zh": "whale-girl"
-      },
-      "description": {
-        "en": "DSH Web GUI 内的桌面宠物（QQ 宠物形态）",
-        "zh": "DSH Web GUI 内的桌面宠物（QQ 宠物形态）"
-      },
-      "repository": {
-        "url": "https://github.com/vlln/whale-girl"
-      },
-      "metadata": {
-        "category": "ui",
-        "keywords": []
-      },
-      "versions": [
-        {
-          "version": "0.1.0",
-          "publishTimestamp": 1787158008,
           "source": {
             "type": "npm"
           }
