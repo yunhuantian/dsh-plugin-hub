@@ -762,6 +762,8 @@ export class PluginStoreService extends TypertRemoteService {
   /** Encyclopedia directory: mirrored plugins + external catalog entries. */
   @Remote('wikiHub')
   async wikiHub(raw: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    // 百科是可选内建插件：关掉之后连数据都不该出去（条目本身还在库里，只是不再对外）。
+    if (!isPluginEnabled('baike')) return { total: 0, items: [] };
     const query = String(raw?.query ?? '').trim().toLowerCase();
     const category = String(raw?.category ?? '').trim();
     const source = String(raw?.source ?? '').trim(); // 'mirror' | 'catalog' | ''
@@ -815,6 +817,9 @@ export class PluginStoreService extends TypertRemoteService {
   /** Encyclopedia entry for one plugin: structured knowledge page. */
   @Remote('wiki')
   async wiki(packageName: string): Promise<Record<string, unknown>> {
+    if (!isPluginEnabled('baike')) {
+      throw new Error('「插件百科」已关闭：在「扩展」里重新打开后才能查看百科条目');
+    }
     const name = String(packageName).trim();
     const row = this.db.getPlugin(name);
     if (row === undefined) throw new Error(`插件不存在: ${name}`);

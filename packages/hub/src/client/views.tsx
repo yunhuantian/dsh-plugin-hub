@@ -295,11 +295,13 @@ interface DetailProps {
   onBack: () => void;
   onChanged: () => void;
   t: (key: string) => string;
+  /** 内建插件启用情况（键 = 插件 id，值 = 真的在跑）。缺省时不隐藏任何 tab。 */
+  gates?: Record<string, boolean>;
 }
 
 type DetailTab = 'overview' | 'usage' | 'versions' | 'graph' | 'reviews' | 'issues' | 'health' | 'bench' | 'wiki';
 
-export function Detail({ api, packageName, onBack, onChanged, t }: DetailProps): ReactNode {
+export function Detail({ api, packageName, onBack, onChanged, t, gates }: DetailProps): ReactNode {
   const [detail, setDetail] = useState<PluginDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; detail: string | null } | null>(null);
@@ -481,7 +483,8 @@ export function Detail({ api, packageName, onBack, onChanged, t }: DetailProps):
     );
   }
 
-  const tabs: Array<{ key: DetailTab; label: string }> = [
+  // 插件关掉后，它提供的详情 tab 也不该出现（否则点进去只会是空内容）。
+  const tabList: Array<{ key: DetailTab; label: string }> = [
     { key: 'overview', label: t('detail.tab.overview') },
     { key: 'usage', label: t('detail.tab.usage') },
     { key: 'versions', label: `${t('detail.tab.versions')}${detail.versions.length ? ` (${detail.versions.length})` : ''}` },
@@ -492,6 +495,7 @@ export function Detail({ api, packageName, onBack, onChanged, t }: DetailProps):
     { key: 'bench', label: t('detail.tab.bench') },
     { key: 'wiki', label: t('detail.tab.wiki') },
   ];
+  const tabs = tabList.filter((tb) => tb.key !== 'wiki' || gates?.baike !== false);
 
   return (
     <div className="dps-view dps-detail">
