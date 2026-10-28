@@ -256,6 +256,36 @@
       ]
     },
     {
+      "name": "@exagone313/dsh-podman",
+      "title": {
+        "en": "@exagone313/dsh-podman",
+        "zh": "@exagone313/dsh-podman"
+      },
+      "description": {
+        "en": "用 Podman 容器执行 DSH 任务，把运行环境隔离开。",
+        "zh": "用 Podman 容器执行 DSH 任务，把运行环境隔离开。"
+      },
+      "repository": {
+        "url": "https://github.com/Exagone313/dsh-podman"
+      },
+      "metadata": {
+        "category": "dev",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.8.1",
+          "publishTimestamp": 1793134843,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
       "name": "@furongjun1999/dsh-memory",
       "title": {
         "en": "@furongjun1999/dsh-memory",
@@ -339,6 +369,36 @@
         {
           "version": "1.0.0-rc.2",
           "publishTimestamp": 1790766731,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "@iasiv5/dsh-quota-watch",
+      "title": {
+        "en": "@iasiv5/dsh-quota-watch",
+        "zh": "@iasiv5/dsh-quota-watch"
+      },
+      "description": {
+        "en": "侧栏配额监控：GLM Coding Plan 与 GitHub Copilot 的额度用量。",
+        "zh": "侧栏配额监控：GLM Coding Plan 与 GitHub Copilot 的额度用量。"
+      },
+      "repository": {
+        "url": "https://github.com/iasiv5/dsh-quota-watch"
+      },
+      "metadata": {
+        "category": "usage",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.1.37",
+          "publishTimestamp": 1793157751,
           "source": {
             "type": "npm"
           }
@@ -536,6 +596,39 @@
       ]
     },
     {
+      "name": "@michengai/dsh-im-connect",
+      "title": {
+        "en": "@michengai/dsh-im-connect",
+        "zh": "@michengai/dsh-im-connect"
+      },
+      "description": {
+        "en": "把主流即时通讯平台接入本机 DSH，在聊天窗口里直接用 Agent。",
+        "zh": "把主流即时通讯平台接入本机 DSH，在聊天窗口里直接用 Agent。"
+      },
+      "repository": {
+        "url": "https://github.com/MichengAI/dsh-im-connect"
+      },
+      "metadata": {
+        "category": "notify",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.0.19",
+          "publishTimestamp": 1793099589,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.0-rc.1 <0.3.0-0"
+          }
+        }
+      ]
+    },
+    {
       "name": "@michengai/dsh-skills-manager",
       "title": {
         "en": "@michengai/dsh-skills-manager",
@@ -660,6 +753,40 @@
       ]
     },
     {
+      "name": "@perrylink/dsh-plugin-doctor",
+      "title": {
+        "en": "@perrylink/dsh-plugin-doctor",
+        "zh": "@perrylink/dsh-plugin-doctor"
+      },
+      "description": {
+        "en": "零依赖的插件体检：静态检查加沙箱冒烟，提前发现装不上或起不来的插件。",
+        "zh": "零依赖的插件体检：静态检查加沙箱冒烟，提前发现装不上或起不来的插件。"
+      },
+      "author": "PerryLink",
+      "repository": {
+        "url": "https://github.com/PerryLink/dsh-plugin-doctor"
+      },
+      "metadata": {
+        "category": "dev",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.7.5",
+          "publishTimestamp": 1793163299,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-0 <0.3.0"
+          }
+        }
+      ]
+    },
+    {
       "name": "@q253595422/dsh-imagegen-video",
       "title": {
         "en": "@q253595422/dsh-imagegen-video",
@@ -746,6 +873,39 @@
           "publishTimestamp": 1792820366,
           "source": {
             "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "@xbzbing/dsh-git-panel",
+      "title": {
+        "en": "@xbzbing/dsh-git-panel",
+        "zh": "@xbzbing/dsh-git-panel"
+      },
+      "description": {
+        "en": "Web GUI 里的 IDE 式 Git 面板：暂存、提交、切分支、看差异。",
+        "zh": "Web GUI 里的 IDE 式 Git 面板：暂存、提交、切分支、看差异。"
+      },
+      "repository": {
+        "url": "https://github.com/xbzbing/dsh-git-panel"
+      },
+      "metadata": {
+        "category": "dev",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.9.4",
+          "publishTimestamp": 1793167326,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.1.7-rc.2"
           }
         }
       ]
@@ -1338,6 +1498,37 @@
       ]
     },
     {
+      "name": "dsh-chat-manager",
+      "title": {
+        "en": "dsh-chat-manager",
+        "zh": "dsh-chat-manager"
+      },
+      "description": {
+        "en": "会话历史管理：搜索、整理与批量处理 DSH 的对话记录。",
+        "zh": "会话历史管理：搜索、整理与批量处理 DSH 的对话记录。"
+      },
+      "author": "WSL043",
+      "repository": {
+        "url": "https://github.com/WSL043/dsh-chat-manager"
+      },
+      "metadata": {
+        "category": "chat",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.5.19",
+          "publishTimestamp": 1793166868,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
       "name": "dsh-claude-style",
       "title": {
         "en": "dsh-claude-style",
@@ -1455,6 +1646,70 @@
           "publishTimestamp": 1792281566,
           "source": {
             "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-codex-subscription",
+      "title": {
+        "en": "dsh-codex-subscription",
+        "zh": "dsh-codex-subscription"
+      },
+      "description": {
+        "en": "把 ChatGPT / Codex 订阅接入 DSH：OAuth 登录、额度显示与请求转发。",
+        "zh": "把 ChatGPT / Codex 订阅接入 DSH：OAuth 登录、额度显示与请求转发。"
+      },
+      "author": "WSL043",
+      "repository": {
+        "url": "https://github.com/WSL043/dsh-codex-subscription"
+      },
+      "metadata": {
+        "category": "usage",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "3.2.0",
+          "publishTimestamp": 1793172022,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-composer-glass",
+      "title": {
+        "en": "dsh-composer-glass",
+        "zh": "dsh-composer-glass"
+      },
+      "description": {
+        "en": "给输入框等界面加统一的磨砂玻璃材质，透明度与模糊可调。",
+        "zh": "给输入框等界面加统一的磨砂玻璃材质，透明度与模糊可调。"
+      },
+      "repository": {
+        "url": "https://github.com/Lbunc/dsh-composer-glass"
+      },
+      "metadata": {
+        "category": "ui",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.1.1",
+          "publishTimestamp": 1793165527,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.1.7-rc.1"
           }
         }
       ]
@@ -1898,6 +2153,39 @@
       ]
     },
     {
+      "name": "dsh-file-review",
+      "title": {
+        "en": "dsh-file-review",
+        "zh": "dsh-file-review"
+      },
+      "description": {
+        "en": "在侧栏里审阅 DSH 对文件的改动，逐处确认或回退。",
+        "zh": "在侧栏里审阅 DSH 对文件的改动，逐处确认或回退。"
+      },
+      "repository": {
+        "url": "https://github.com/left0ver/dsh-file-review"
+      },
+      "metadata": {
+        "category": "dev",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.8.12",
+          "publishTimestamp": 1793179699,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.1 <0.2.2-0"
+          }
+        }
+      ]
+    },
+    {
       "name": "dsh-game-material-master",
       "title": {
         "en": "dsh-game-material-master",
@@ -1926,6 +2214,40 @@
           },
           "engines": {
             "dsh": ">=0.2.0-rc.2 <0.3.0-0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-hyperframes",
+      "title": {
+        "en": "dsh-hyperframes",
+        "zh": "dsh-hyperframes"
+      },
+      "description": {
+        "en": "HyperFrames 视频工作台：内置技能、模板与素材管理，预览确认后本地导出 MP4。",
+        "zh": "HyperFrames 视频工作台：内置技能、模板与素材管理，预览确认后本地导出 MP4。"
+      },
+      "author": "stardustlc",
+      "repository": {
+        "url": "https://github.com/STARDUSTLC666/dsh-hyperframes"
+      },
+      "metadata": {
+        "category": "vision",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.10.0",
+          "publishTimestamp": 1793151044,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.3"
           }
         }
       ]
@@ -2182,6 +2504,36 @@
       ]
     },
     {
+      "name": "dsh-model-switch",
+      "title": {
+        "en": "dsh-model-switch",
+        "zh": "dsh-model-switch"
+      },
+      "description": {
+        "en": "显式模型路由，并在输入框与 Plan 模式下提供模型选择器。",
+        "zh": "显式模型路由，并在输入框与 Plan 模式下提供模型选择器。"
+      },
+      "repository": {
+        "url": "https://github.com/vandoor7-droid/dsh-model-switch"
+      },
+      "metadata": {
+        "category": "usage",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.4.52",
+          "publishTimestamp": 1793183943,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
       "name": "dsh-motion-ui",
       "title": {
         "en": "dsh-motion-ui",
@@ -2336,6 +2688,36 @@
       ]
     },
     {
+      "name": "dsh-plugin-om",
+      "title": {
+        "en": "dsh-plugin-om",
+        "zh": "dsh-plugin-om"
+      },
+      "description": {
+        "en": "观察式记忆：上下文压缩配合原文回查，长会话里不丢细节。",
+        "zh": "观察式记忆：上下文压缩配合原文回查，长会话里不丢细节。"
+      },
+      "repository": {
+        "url": "https://github.com/FanetheDivine/dsh-plugin-om"
+      },
+      "metadata": {
+        "category": "memory",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.0.63",
+          "publishTimestamp": 1793168682,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
       "name": "dsh-plugin-rea",
       "title": {
         "en": "dsh-plugin-rea",
@@ -2395,6 +2777,39 @@
           "publishTimestamp": 1793005316,
           "source": {
             "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-plugin-tool-management",
+      "title": {
+        "en": "dsh-plugin-tool-management",
+        "zh": "dsh-plugin-tool-management"
+      },
+      "description": {
+        "en": "统一管理 MCP、技能、记忆、子智能体、提示词与归档会话，可存成场景一键切换环境。",
+        "zh": "统一管理 MCP、技能、记忆、子智能体、提示词与归档会话，可存成场景一键切换环境。"
+      },
+      "repository": {
+        "url": "https://github.com/ouli-1242/dsh-plugin-tool-management"
+      },
+      "metadata": {
+        "category": "tool",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.21.8",
+          "publishTimestamp": 1793154001,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.3 <0.2.2"
           }
         }
       ]
@@ -2584,6 +2999,40 @@
       ]
     },
     {
+      "name": "dsh-remotion",
+      "title": {
+        "en": "dsh-remotion",
+        "zh": "dsh-remotion"
+      },
+      "description": {
+        "en": "Remotion 视频插件：用 React 写视频，带模板与素材工作台，官方 Studio 预览后导出本地 MP4。",
+        "zh": "Remotion 视频插件：用 React 写视频，带模板与素材工作台，官方 Studio 预览后导出本地 MP4。"
+      },
+      "author": "stardustlc",
+      "repository": {
+        "url": "https://github.com/STARDUSTLC666/dsh-remotion"
+      },
+      "metadata": {
+        "category": "vision",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.9.0",
+          "publishTimestamp": 1793150940,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.3"
+          }
+        }
+      ]
+    },
+    {
       "name": "dsh-research-report",
       "title": {
         "en": "dsh-research-report",
@@ -2646,6 +3095,70 @@
           },
           "engines": {
             "dsh": ">=0.2.1-rc.1 <0.3.0-0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-router-core",
+      "title": {
+        "en": "dsh-router-core",
+        "zh": "dsh-router-core"
+      },
+      "description": {
+        "en": "简化版 9router：在 DSH 里做多供应商的请求路由与分流。",
+        "zh": "简化版 9router：在 DSH 里做多供应商的请求路由与分流。"
+      },
+      "repository": {
+        "url": "https://github.com/CARVIN94/dsh-router"
+      },
+      "metadata": {
+        "category": "usage",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.4.9",
+          "publishTimestamp": 1793166917,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-rss",
+      "title": {
+        "en": "dsh-rss",
+        "zh": "dsh-rss"
+      },
+      "description": {
+        "en": "在 DSH 里订阅和阅读 RSS / Atom，管理更新与未读条目。",
+        "zh": "在 DSH 里订阅和阅读 RSS / Atom，管理更新与未读条目。"
+      },
+      "author": "stardustlc",
+      "repository": {
+        "url": "https://github.com/STARDUSTLC666/dsh-rss"
+      },
+      "metadata": {
+        "category": "tool",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.9.4",
+          "publishTimestamp": 1793173781,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.3"
           }
         }
       ]
@@ -2745,6 +3258,102 @@
       ]
     },
     {
+      "name": "dsh-task-ledger",
+      "title": {
+        "en": "dsh-task-ledger",
+        "zh": "dsh-task-ledger"
+      },
+      "description": {
+        "en": "任务台账看板：以只读面板查看 DSH 的任务与进度。",
+        "zh": "任务台账看板：以只读面板查看 DSH 的任务与进度。"
+      },
+      "repository": {
+        "url": "https://github.com/cq-guojia/dsh-task-ledger"
+      },
+      "metadata": {
+        "category": "tool",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.0.113",
+          "publishTimestamp": 1793151152,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-tg-bridge",
+      "title": {
+        "en": "dsh-tg-bridge",
+        "zh": "dsh-tg-bridge"
+      },
+      "description": {
+        "en": "Telegram 桥：把文本、语音、图片和项目文件接进 DSH。",
+        "zh": "Telegram 桥：把文本、语音、图片和项目文件接进 DSH。"
+      },
+      "repository": {
+        "url": "https://github.com/aleksvega/dsh-tg-bridge"
+      },
+      "metadata": {
+        "category": "notify",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.19.12",
+          "publishTimestamp": 1793128955,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.2 <0.3.0-0 || >=0.2.2-rc.1 <0.3.0-0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-thinking-levels",
+      "title": {
+        "en": "dsh-thinking-levels",
+        "zh": "dsh-thinking-levels"
+      },
+      "description": {
+        "en": "控制模型的思考等级（reasoning_effort），按会话切换推理深度。",
+        "zh": "控制模型的思考等级（reasoning_effort），按会话切换推理深度。"
+      },
+      "repository": {
+        "url": "https://github.com/drscrewdriver/dsh-thinking-levels"
+      },
+      "metadata": {
+        "category": "usage",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "4.4.9",
+          "publishTimestamp": 1793183363,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.0-rc.8 || 0.1.1-rc.1 || 0.1.1-rc.2 || 0.1.2-rc.1 || 0.1.5-rc.1 || 0.1.5-rc.2 || 0.1.5-rc.3 || 0.1.7-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4"
+          }
+        }
+      ]
+    },
+    {
       "name": "dsh-tool-todo-plus",
       "title": {
         "en": "dsh-tool-todo-plus",
@@ -2837,6 +3446,40 @@
           "publishTimestamp": 1791449118,
           "source": {
             "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dsh-unlag",
+      "title": {
+        "en": "dsh-unlag",
+        "zh": "dsh-unlag"
+      },
+      "description": {
+        "en": "桌面端的刷新按钮：改完插件不用重启，开久了卡顿也能一键刷新，正在进行的会话不受影响。",
+        "zh": "桌面端的刷新按钮：改完插件不用重启，开久了卡顿也能一键刷新，正在进行的会话不受影响。"
+      },
+      "author": "regrevia",
+      "repository": {
+        "url": "https://github.com/regrevia/dsh-unlag"
+      },
+      "metadata": {
+        "category": "tool",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.14.7",
+          "publishTimestamp": 1793183036,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": ">=0.2.0-rc.1"
           }
         }
       ]
@@ -3211,6 +3854,36 @@
         {
           "version": "1.3.0",
           "publishTimestamp": 1791871831,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wechat-clawbot",
+      "title": {
+        "en": "wechat-clawbot",
+        "zh": "wechat-clawbot"
+      },
+      "description": {
+        "en": "通过微信 ClawBot 把 DSH 接进微信，直接收发消息。",
+        "zh": "通过微信 ClawBot 把 DSH 接进微信，直接收发消息。"
+      },
+      "repository": {
+        "url": "https://github.com/Alphainfix/wechat-clawbot"
+      },
+      "metadata": {
+        "category": "notify",
+        "keywords": [],
+        "labels": [
+          "certified"
+        ]
+      },
+      "versions": [
+        {
+          "version": "1.3.1",
+          "publishTimestamp": 1793165755,
           "source": {
             "type": "npm"
           }
