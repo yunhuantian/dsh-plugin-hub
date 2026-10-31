@@ -357,6 +357,11 @@ export interface RemoteApi {
   extensionSet(id: string, enabled: boolean): Promise<OpResult>;
   /** 版本化价格表（旧 → 新）：UI 用它标注"当时价/现价"的口径来源。 */
   pricingTable(): Promise<PricingSnapshot>;
+  /**
+   * 导出诊断报告。`sessionId` 可选：带上会多一节「用量与花费」。
+   * 报告写在 host 侧，返回路径与正文；UI 只展示摘要与路径。
+   */
+  diagnosticsExport(sessionId?: string | null): Promise<DiagnosticsReceipt>;
   /** 全部列表来源（kind=0 商店两区 / kind=1 整合包）。 */
   listSources(): Promise<{ items: ListSource[] }>;
   /** 添加来源：URL / 粘贴文本 / 上传文件（base64）三选一。 */
@@ -479,6 +484,14 @@ export interface PricingSnapshot {
   versions: PricingVersionRow[];
 }
 
+/** 诊断导出结果：`body` 是给人复制的正文，UI 不要整段渲染。 */
+export interface DiagnosticsReceipt {
+  ok: boolean;
+  path: string | null;
+  summary: string;
+  body: string;
+}
+
 export function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: { code: string; message: string } }): T {
   if (result.ok) return result.value;
   throw new Error(`${result.error.code}: ${result.error.message}`);
@@ -525,6 +538,7 @@ export function makeApi(remote: Record<string, any>): RemoteApi {
     extensions: async () => unwrap(await r.extensions()),
     extensionSet: async (id, enabled) => unwrap(await r.extensionSet(id, enabled)),
     pricingTable: async () => unwrap(await r.pricingTable()),
+    diagnosticsExport: async (sessionId) => unwrap(await r.diagnosticsExport(sessionId ?? null)),
     listSources: async () => unwrap(await r.listSources()),
     addListSource: async (input) => unwrap(await r.addListSource(input)),
     addCrawlSource: async (spec, label) => unwrap(await r.addCrawlSource(spec, label)),

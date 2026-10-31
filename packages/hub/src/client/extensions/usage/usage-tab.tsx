@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { compareCost, latestTable, type UsageBuckets } from '../../../contracts/pricing.js';
+import { UNKNOWN_MODEL, latestTable, settleRequest, type UsageBuckets } from '../../../contracts/pricing.js';
 
 /**
  * 会话 id。新版由 `@deepseek-ai/dsh-session/types` 导出；这里只做结构占位。
@@ -140,7 +140,7 @@ const LEGEND = [
 ] as const;
 
 /** Internal bucket key for requests whose model name was never recorded. */
-const UNKNOWN_MODEL = '__unknown__';
+const UNKNOWN_MODEL_LABEL = UNKNOWN_MODEL;
 
 /** Nice tick intervals for the time axis (ms). */
 const TICK_INTERVALS = [1_000, 2_000, 5_000, 10_000, 30_000, 60_000, 120_000, 300_000, 600_000, 1_800_000, 3_600_000, 7_200_000, 21_600_000, 43_200_000];
@@ -186,12 +186,13 @@ export function InsightsUsageTab({ frame, tokenUsage, sessionId, t }: UsageTabPr
     for (const p of points) {
       // time 缺失（老日志）时无法定位价表，退回"现在"：此时 charged == now，
       // 差额为 0 —— 比编造一个历史价诚实。
-      const at = p.time > 0 ? p.time : Date.now();
-      const c = compareCost(p.usage, p.provider, p.model, at);
-      if (c.known) { charged += c.chargedUsd; now += c.nowUsd; known++; }
-      const key = p.model ?? UNKNOWN_MODEL;
+      const s = settleRequest(p.usage, p.provider, p.model, p.time);
+      // known 同时要求"当时收录过"：模型是后来才加进价表的，不能说当时收了钱。
+      if (s.chargedKnown) { charged += s.chargedUsd; now += s.nowUsd; known++; }
+      // 模型桶按**归一后**的名字分（否则 deepseek-flash / deepseek 会裂成两行）。
+      const key = s.model ?? UNKNOWN_MODEL;
       models.set(key, (models.get(key) ?? 0) + 1);
-      tables.set(c.chargedTable.id, (tables.get(c.chargedTable.id) ?? 0) + 1);
+      tables.set(s.chargedTable.id, (tables.get(s.chargedTable.id) ?? 0) + 1);
     }
     return { charged, now, delta: now - charged, known, total: points.length, models, tables };
   }, [points]);
@@ -411,7 +412,7 @@ export function InsightsUsageTab({ frame, tokenUsage, sessionId, t }: UsageTabPr
           <div className="dsu-muted">{tf('modelUnknownHint')}</div>
         )}
         {costInfo.total > 0 && costInfo.known < costInfo.total && (
-          <div className="dsu-warn">{tf('unknownPriceWarn')} · v{nowTable.id}</div>
+          <div className="dsu-warn">{tf('unknownPriceWarn')} · v{nowTable.id} · {costInfo.total - costInfo.known}/{costInfo.total}</div>
         )}
 
         {/* 价格表来源：版本 + 生效日期（0.2 起价格表带日期，可回溯历史价） */}

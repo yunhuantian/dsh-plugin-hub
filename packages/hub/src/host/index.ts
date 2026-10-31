@@ -29,6 +29,7 @@ import { syncTrustLevels } from './trust-sync.js';
 import { syncBlueWhaleCatalog } from './catalog-sync.js';
 import { syncSkills, parseSkillFrontmatter } from './skill-sync.js';
 import { currentVersion, historySnapshot } from '../contracts/pricing.js';
+import { buildDiagnosticReport } from './diagnostics.js';
 import {
   HUB_PLUGINS,
   HUB_PLUGIN_GROUPS,
@@ -2210,6 +2211,46 @@ export class PluginStoreService extends TypertRemoteService {
   @Remote('pricingTable')
   async pricingTable(): Promise<Record<string, unknown>> {
     return { current: currentVersion(), versions: historySnapshot() };
+  }
+
+  /**
+   * 导出诊断报告。
+   *
+   * 走 Remote 而不是只留 `pluginDiagnostics` 服务，理由有两条：
+   *   1. 设置页要能**直接**点导出 —— 而 diagnostics 插件默认关闭，关掉的插件
+   *      不提供服务，让 UI 依赖一个可能不存在的服务会表现为"按钮点了没反应"；
+   *   2. 报告里最有用的两节（花费、loader 真实阶段）只有 host 侧拿得到。
+   *
+   * `sessionId` 可选：带上是"从会话里点的导出"，报告会多一节用量与花费；
+   * 不带就是纯环境报告（设置页默认路径）。
+   */
+  @Remote('diagnosticsExport')
+  async diagnosticsExport(sessionId?: string | null): Promise<Record<string, unknown>> {
+    const loaderPhases = new Map<string, string | null>();
+    // 会话只用于"花费"那一节；拿不到就当纯环境报告，绝不影响导出本身。
+    let session: any = null;
+    if (typeof sessionId === 'string' && sessionId !== '') {
+      try {
+        const bindings = this.appCtx?.uiConversation;
+        session = bindings?.binding?.(sessionId)?.session ?? null;
+      } catch {
+        session = null;
+      }
+    }
+    try {
+      const report = buildDiagnosticReport(this.profile, storeDB(), { loaderPhases, session });
+      this.appendAudit('diagnostics', 'report', report.ok ? 'ok' : 'failed', report.summary);
+      return {
+        ok: report.ok,
+        path: report.path,
+        summary: report.summary,
+        body: report.body,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.appendAudit('diagnostics', 'report', 'failed', message);
+      return { ok: false, path: null, summary: `导出失败：${message}`, body: '' };
+    }
   }
 
   @Remote('scaffold')

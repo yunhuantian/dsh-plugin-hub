@@ -114,6 +114,29 @@ export interface CostComparison extends CostResult {
 export declare function compareCost(usage: UsageBuckets, provider: string | null, model: string | null, timeMs: number, history?: readonly PriceTableVersion[]): CostComparison;
 /** 需要对比"现价 vs 当时价"时，两版是否同一个（相同则无需展示差额）。 */
 export declare function sameTableNumber(a: PriceTableVersion, b: PriceTableVersion): boolean;
+/** 认不出的模型在汇总里单独成桶（不静默丢弃，也不编造单价）。 */
+export declare const UNKNOWN_MODEL = "__unknown__";
+/** 把 `(provider, model)` 归一到价格表认得的组合。 */
+export declare function canonicalRoute(provider: string | null, model: string | null): {
+    provider: string | null;
+    model: string | null;
+};
+/** 一笔请求在「当时价 / 现价」下的结算结果（比 CostComparison 多带归一后的路由）。 */
+export interface RequestSettlement extends CostComparison {
+    /** 归一后的 provider（UI/报告里显示这个，别显示原始值）。 */
+    provider: string | null;
+    /** 归一后的 model。 */
+    model: string | null;
+}
+/**
+ * 结算一笔请求：选表 → 归一 provider → 算当时价与现价。
+ *
+ * `timeMs <= 0` 表示日志没记录时间：此时只能按"现在"算，两个数被迫相等，
+ * 差额恒为 0 —— 比编造一个历史时刻诚实。
+ */
+export declare function settleRequest(usage: UsageBuckets, provider: string | null, model: string | null, timeMs: number, history?: readonly PriceTableVersion[]): RequestSettlement;
+/** 稳定两位小数的美元文本（工具与报告要能被 diff / 排序，不用浮点尾数）。 */
+export declare function fmtUsd(v: number): string;
 /** 价格表的对外快照形状（Remote 返回用；避免把函数/长注释带出去）。 */
 export interface PriceTableSnapshot {
     version: string;

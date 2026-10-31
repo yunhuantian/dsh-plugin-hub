@@ -1,14 +1,22 @@
 
+/* 商店现在是**内嵌**在官方「插件」页 / 设置分区里的，不再是悬浮弹层。
+   所以这里不给固定像素宽度，也不给 max-width: calc(100vw - …)：
+   按内嵌容器的可用宽度自适应（容器窄就窄），绝不撑出横向滚动条。
+   `min-width: 0` 是关键 —— flex/grid 子项默认 min-width:auto，
+   内容一宽就顶破容器，窄窗口下表现为"要横向滚才看得全"。
+   （0.2.8 修 issue #9：975px 宽窗口下右侧被挤出可视区。） */
 .dps-panel {
   z-index: 1;
   background: var(--dsw-alias-bg-layer-2);
-  width: 1060px;
-  max-width: calc(100vw - 48px);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   height: min(820px, 100vh - 48px);
   box-shadow: var(--dsw-shadow-lv3);
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
-  border-radius: 24px;
+  border-radius: 16px;
   display: flex;
   position: relative;
   overflow: hidden;
@@ -18,11 +26,13 @@
 .dps-panel-tabs { flex-direction: column; }
 .dps-topbar { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 14px 20px 0; }
 .dps-topbar-head { display: flex; align-items: center; gap: 8px; min-height: 26px; }
+/* 顶部标签：宽容器里一行排开；窄容器（设置弹窗里约 560px）里换行，
+   绝不横向滚动 —— 滚动等于"藏起来"，用户不知道右边还有东西（issue #9）。 */
 .dps-topnav {
-  display: flex; align-items: center; gap: 2px;
-  overflow-x: auto; overflow-y: hidden;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+  min-width: 0;
+  overflow: hidden;
   border-bottom: 1px solid var(--dsw-alias-border-l2);
-  scrollbar-width: none;
 }
 .dps-topnav::-webkit-scrollbar { display: none; }
 .dps-topnav-cell {
@@ -38,7 +48,7 @@
   font-weight: 600;
 }
 .dps-header-title { color: var(--dsw-alias-label-primary); font-size: 15px; font-weight: 600; padding-left: 2px; }
-.dps-body { flex: 1; min-height: 0; padding: 14px 20px 20px; overflow-y: auto; }
+.dps-body { flex: 1; min-width: 0; min-height: 0; padding: 14px 20px 20px; overflow-y: auto; overflow-x: hidden; }
 
 .dps-view { flex-direction: column; gap: 14px; display: flex; min-height: 100%; }
 .dps-view-head { align-items: center; justify-content: space-between; gap: 8px; display: flex; }
@@ -533,6 +543,20 @@
   font-size: 12px; color: var(--dsw-alias-label-secondary);
 }
 .dps-ext-summary strong { color: var(--dsw-alias-label-primary); }
+
+/* ====== 诊断报告导出 ====== */
+.dps-diag-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.dps-diag-result {
+  margin-top: 10px; padding: 8px 12px; border-radius: 10px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  font-size: 12px; color: var(--dsw-alias-label-secondary);
+  /* 路径可能很长：允许在任意位置换行，别把设置弹窗撑出横向滚动条。 */
+  overflow-wrap: anywhere;
+}
+.dps-diag-result p { margin: 0; }
+.dps-diag-result p + p { margin-top: 4px; }
+.dps-diag-result code { word-break: break-all; font-size: 11px; }
+.dps-diag-result.failed { border-left: 3px solid #d85a30; }
 .dps-ext-group { margin-top: 14px; }
 .dps-ext-group-head {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;

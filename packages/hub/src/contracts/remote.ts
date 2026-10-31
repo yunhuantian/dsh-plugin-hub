@@ -719,6 +719,21 @@ export const descriptors = [
       models: z.array(z.string()).readonly(),
     }).readonly()).readonly(),
   })),
+  /**
+   * 导出诊断报告（写盘在 host，返回正文与路径）。
+   *
+   * 走 Remote 而不是只留 `pluginDiagnostics` 服务：diagnostics 插件默认关闭，
+   * 关掉的插件不提供服务 —— 让设置页依赖它会表现为"点了没反应"。
+   *
+   * ⚠️ `body` 可能上万字：它是给人复制到 issue 用的，不是给 UI 渲染的。
+   * UI 只显示 `summary` 与 `path`，不要整段塞进 DOM。
+   */
+  descriptor('diagnosticsExport', [parameter('sessionId', z.string().nullable().optional())], z.object({
+    ok: z.boolean(),
+    path: z.string().nullable(),
+    summary: z.string(),
+    body: z.string(),
+  })),
 ];
 
 export const TYPERT_REMOTE = { package: 'dsh-plugin-hub', descriptors };

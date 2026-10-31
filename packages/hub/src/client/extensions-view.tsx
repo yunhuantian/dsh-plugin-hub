@@ -8,13 +8,17 @@ import { IconCordisPlugin } from './icons';
  * 「设置」视图里本来就有，只有**扩展开关**是这里独有的，所以单独拆出来。
  */
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import type { ExtensionRow, ExtensionsSnapshot, RemoteApi } from './api';
+import type { DiagnosticsReceipt, ExtensionRow, ExtensionsSnapshot, RemoteApi } from './api';
 
 export function ExtensionsView({ api, t }: { api: RemoteApi; t: (k: string) => string }): ReactNode {
   const [extensions, setExtensions] = useState<ExtensionsSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // 诊断导出：结果只留在内存里（正文几万字，不进 localStorage）。
+  const [diag, setDiag] = useState<DiagnosticsReceipt | null>(null);
+  const [diagBusy, setDiagBusy] = useState(false);
+  const [diagCopied, setDiagCopied] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -39,6 +43,36 @@ export function ExtensionsView({ api, t }: { api: RemoteApi; t: (k: string) => s
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
+    }
+  };
+
+  /**
+   * 导出诊断报告。
+   *
+   * 不带 sessionId：这是设置页入口，那时未必有打开的会话；即使有，host 侧
+   * 也未必能反查到同一个会话对象。要带花费的导出走会话侧的入口。
+   * 失败时保留 `diag`（含 OK=false），把失败原因显示出来而不是静默。
+   */
+  const exportDiagnostics = async () => {
+    setDiagBusy(true);
+    setDiagCopied(false);
+    try {
+      setDiag(await api.diagnosticsExport());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDiagBusy(false);
+    }
+  };
+
+  /** 复制正文：失败就退回"让用户自己打开文件"，不假装成功。 */
+  const copyDiagnostics = async () => {
+    if (diag === null || diag.body === '') return;
+    try {
+      await navigator.clipboard.writeText(diag.body);
+      setDiagCopied(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -143,6 +177,31 @@ export function ExtensionsView({ api, t }: { api: RemoteApi; t: (k: string) => s
         })}
         {extensions === null && <p className="dps-hint">{t('settings.builtinLoading')}</p>}
         <p className="dps-hint">{t('settings.switchesBefore')}<code>storages/plugin-store/plugins.json</code>{t('settings.switchesMiddle')}<strong>{t('settings.switchesStrong')}</strong>{t('settings.switchesAfter')}</p>
+      </section>
+
+      {/* 诊断报告：跟插件开关同一页 —— 出问题时人本来就在这里看状态。 */}
+      <section className="dps-section">
+        <h4 className="dps-section-title"><IconCordisPlugin size={15} /> {t('settings.diagTitle')}</h4>
+        <p className="dps-hint">{t('settings.diagIntro')}</p>
+        <div className="dps-diag-actions">
+          <button type="button" className="dps-btn dps-btn-primary" disabled={diagBusy} onClick={() => void exportDiagnostics()}>
+            {diagBusy ? t('settings.diagBusy') : t('settings.diagExport')}
+          </button>
+          {diag !== null && diag.ok && diag.body !== '' && (
+            <button type="button" className="dps-btn" onClick={() => void copyDiagnostics()}>
+              {diagCopied ? t('settings.diagCopied') : t('settings.diagCopy')}
+            </button>
+          )}
+        </div>
+        {diag !== null && (
+          <div className={`dps-diag-result${diag.ok ? '' : ' failed'}`}>
+            <p>{diag.summary}</p>
+            {diag.ok && diag.path !== null && (
+              <p className="dps-hint">{t('settings.diagPath')}<code>{diag.path}</code></p>
+            )}
+            {!diag.ok && <p className="dps-hint">{t('settings.diagFailed')}</p>}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -240,6 +240,18 @@ export declare class PluginStoreService extends TypertRemoteService {
      * 单独开这个 Remote，是为了让其它插件复用同一份价格表而不必各自硬编码单价。
      */
     pricingTable(): Promise<Record<string, unknown>>;
+    /**
+     * 导出诊断报告。
+     *
+     * 走 Remote 而不是只留 `pluginDiagnostics` 服务，理由有两条：
+     *   1. 设置页要能**直接**点导出 —— 而 diagnostics 插件默认关闭，关掉的插件
+     *      不提供服务，让 UI 依赖一个可能不存在的服务会表现为"按钮点了没反应"；
+     *   2. 报告里最有用的两节（花费、loader 真实阶段）只有 host 侧拿得到。
+     *
+     * `sessionId` 可选：带上是"从会话里点的导出"，报告会多一节用量与花费；
+     * 不带就是纯环境报告（设置页默认路径）。
+     */
+    diagnosticsExport(sessionId?: string | null): Promise<Record<string, unknown>>;
     scaffold(): Promise<Record<string, unknown>>;
 }
 export default PluginStoreService;

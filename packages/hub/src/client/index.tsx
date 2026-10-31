@@ -8,7 +8,7 @@ import { IconCordisPlugin } from './icons';
  *   renders as part of that page rather than as an extra plugin. hub 自己的插件组成
  *   （bundle patch / 内部扩展名册 / client inject）不因为这个落点变化而改变。
  */
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { TYPERT_REMOTE, makeApi, type RemoteApi } from './api';
 import { StoreApp } from './StoreApp';
 import { mountUsageView, usageDictionaries, USAGE_NS } from './extensions/usage/index';
@@ -432,6 +432,15 @@ const zh = {
   'settings.turnOff': '关闭',
   'settings.turnOn': '开启',
   'settings.builtinLoading': '正在读取内建插件状态…',
+  'settings.diagTitle': '诊断报告',
+  'settings.diagIntro': '把环境、内建插件状态、用量与花费、profile 依赖与 patch 覆盖、本地文件状态打包成一份 Markdown，出问题时直接附到 issue 里。报告不含令牌明文（凭据只记"有没有配"）。',
+  'settings.diagExport': '导出报告',
+  'settings.diagBusy': '正在导出…',
+  'settings.diagCopy': '复制正文',
+  'settings.diagCopied': '已复制到剪贴板',
+  'settings.diagPath': '已写入：',
+  'settings.diagFailed': '导出失败（未能写盘）',
+  'settings.diagNoSession': '当前窗口没有可读的会话，报告不含「用量与花费」小节。',
   'settings.switchesBefore': '开关写入本机 ',
   'settings.switchesMiddle': '，',
   'settings.switchesStrong': '重启 dsh 后生效',
@@ -863,6 +872,15 @@ const en: Record<keyof typeof zh, string> = {
   'settings.turnOff': 'Turn off',
   'settings.turnOn': 'Turn on',
   'settings.builtinLoading': 'Reading built-in plugin state…',
+  'settings.diagTitle': 'Diagnostic report',
+  'settings.diagIntro': 'Bundles environment, built-in plugin states, usage and spend, profile dependencies and patch overrides, and local file state into one Markdown file you can attach to an issue. It never contains credentials — only whether they are configured.',
+  'settings.diagExport': 'Export report',
+  'settings.diagBusy': 'Exporting…',
+  'settings.diagCopy': 'Copy body',
+  'settings.diagCopied': 'Copied to clipboard',
+  'settings.diagPath': 'Written to: ',
+  'settings.diagFailed': 'Export failed (could not write the file)',
+  'settings.diagNoSession': 'No readable session in this window, so the report has no usage/spend section.',
   'settings.switchesBefore': 'Switches are written to ',
   'settings.switchesMiddle': ', ',
   'settings.switchesStrong': 'and take effect after dsh restarts',
@@ -891,7 +909,7 @@ const en: Record<keyof typeof zh, string> = {
 export const inject = ['slots', 'locale', 'remote'];
 
 /**
- * 商店面板：注册进官方「插件」页的一个条目（`plugins.item`）。
+ * 商店面板：同时挂在两个槽上（落点见 apply 里的说明）。
  *
  * ⚠️ **官方会拿同一个组件渲染两次**，靠 `view` 区分 —— 这是踩过一次才看清的契约：
  *
@@ -902,10 +920,35 @@ export const inject = ['slots', 'locale', 'remote'];
  * 列表里一排官方条目（终端 / Agent 循环 / 网页搜索…）各占一行，紧接着就是我们
  * 整块商店展开，非常突兀。正确做法是 summary 只给一行摘要 ——
  * 标题、图标、点击热区和「返回列表」都由官方那套渲染，我们一格自定义 chrome 都不用加。
+ *
+ * `settings.section`（设置页分区）没有 `view` 参数，传进来的是 section 的行数据，
+ * 因此那里一律渲染完整商店；卡片那一路（`view === 'summary'`）只给一句话 + 跳转。
  */
 function StorePluginsTab({ view, api, t }: { view?: string; api: RemoteApi; t: (k: string) => string }): ReactNode {
-  if (view === 'summary') return <>{t('entry.summary')}</>;
+  if (view === 'summary') return <StoreEntrySummary t={t} />;
   return <StoreApp api={api} t={t} />;
+}
+
+/**
+ * 「插件」页卡片里的那个小摘要。卡片的宽度由官方列表决定（约 320px），
+ * 塞整个商店只会横向溢出（issue #9），所以这里只留一句说明和一条跳转：
+ * 在「设置」里选中「内置插件」分区，再选中「插件商店」tab。
+ *
+ * 走的是官方的两个 cordis 服务（`layout.selectPanel` / `reflect.get` 拿到分区导航），
+ * 都拿不到就退回纯文字提示，不阻断任何东西。
+ */
+/**
+ * 卡片摘要（`plugins.item` 的 `summary` 视图）。官方在**两个位置**都渲染它：
+ *
+ *   1. 列表里那张卡的描述行（单行截断，卡片宽度由官方决定）；
+ *   2. 详情页头部的描述行 —— 那里已经有图标 + 标题。
+ *
+ * 所以这里**不能再放第二段说明文字**（详情页会重复一遍），也不渲染任何
+ * 会撑宽的内容（issue #9）。只给一句最必要的位置指引：在列表卡里被截断无所谓，
+ * 在详情页里正好补上"东西在哪"。
+ */
+function StoreEntrySummary({ t }: { t: (k: string) => string }): ReactNode {
+  return <span>{t('entry.summary')}</span>;
 }
 
 /**
@@ -925,21 +968,54 @@ export async function apply(ctx: any): Promise<() => Promise<void>> {
     const api: RemoteApi = makeApi(scope.remote);
     const t = ctx.locale.bind(NS);
 
-    // 唯一对外的界面接入点：官方「插件」页（侧栏「插件」，intro 写着"安装、启用和
-    // 配置插件"）里的一个条目。
+    // 对外界面接入点。**两个落点同时注册**：
     //
-    // 该页由 dsh-client-ui-plugin-manager 拥有（注册 `main` 槽、key = "plugins"），
-    // 并声明了子槽 `plugins.item`（list）。官方自己的插件配置卡就是这么挂的
-    // （如 dsh-client-ui-settings-shell），点条目会进入一个独立视图
-    // （页面内部 `view.kind === 'item'`）—— 正好适合商店这种大界面。
-    scope.slots.inject('plugins.item', () => scope.slots.register({
-      name: 'plugins.item',
-      id: 'plugin-store',
-      order: 90,
-      label: () => t('entry.label'),
-      locale: NS,
-      inject: () => ({ api, t }),
-    }, StorePluginsTab));
+    // ① `plugins.item` —— 侧栏「插件」页里的条目（主入口）。
+    //    该页由 `dsh-client-ui-plugin-manager` 拥有（`main` 槽、key = "plugins"），
+    //    并声明了子槽 `plugins.item`（list）。官方自己的插件配置卡就挂在这里
+    //    （点条目进独立视图，`view.kind === 'item'`）—— 正好适合商店这种大界面。
+    //
+    // ② `settings.section` —— 设置页左侧导航的「插件商店」分区（兜底 + 窄屏用）。
+    //    落点由 `@deepseek-ai/dsh-client-ui-settings-plugins` 提供：它是
+    //    `settings.section` 的一个条目（「内置插件」页），并声明了子槽
+    //    `settings.plugins.tab`（list）。我们把自己的商店注册成这个 section，
+    //    于是设置页里直接就是一整页宽容器 —— 不会被 320px 宽的插件卡片挤爆。
+    //
+    // 只注册 ① 的历史教训（issue #8）：某个版本里 ① 的注册"成功"却没有消费方，
+    // 商店完全不可见且控制台无报错。现在注册失败一律 `console.warn`，不静默；
+    // ② 独立于 ①，① 不可达时用户仍能从设置页进入。
+    const registerInto = (
+      slot: string,
+      options: { id: string; order: number; children?: Record<string, unknown> },
+    ): boolean => {
+      try {
+        scope.slots.inject(slot, () => {
+          try {
+            scope.slots.register({
+              name: slot,
+              id: options.id,
+              order: options.order,
+              label: () => t('entry.label'),
+              locale: NS,
+              inject: () => ({ api, t }),
+              ...(options.children === undefined ? {} : { children: options.children }),
+            }, StorePluginsTab);
+          } catch (error) {
+            // 不再静默：注册失败必须可见，否则表现就是"界面不出现但没报错"。
+            console.warn(`[dsh-plugin-hub] register into "${slot}" failed:`, error);
+          }
+        });
+        return true;
+      } catch (error) {
+        console.warn(`[dsh-plugin-hub] slot "${slot}" is not available:`, error);
+        return false;
+      }
+    };
+
+    // ① 插件页条目（主入口）
+    registerInto('plugins.item', { id: 'plugin-store', order: 90 });
+    // ② 设置页分区（兜底；① 不可达时用户从这里进）
+    registerInto('settings.section', { id: 'plugin-store', order: 60 });
 
     // 内置扩展的 UI（0.2：hub 一个包、多个可开关的内部插件）。
     //
@@ -949,7 +1025,10 @@ export async function apply(ctx: any): Promise<() => Promise<void>> {
     //
     //    注意：视图必须挂在 hub 的 client 里（一个包只能有一份 client 产物，
     //    见 harness 的 dsh.client 契约），所以扩展是"内部模块"而不是独立包。
-    void scope.remote.pluginStore.extensions().then((snapshot: { rows?: Array<{ id: string; enabled: boolean }> }) => {
+    // ⚠️ 必须走 `api`（它会解 Typert 的 `{ ok, value }` 信封），不能直连
+    //    `scope.remote.pluginStore`：直连拿到的是信封对象，`snapshot.rows` 恒为
+    //    undefined → enabled 集合恒空 → 所有扩展 UI 静默不挂载（0.2.7 实测踩过）。
+    void api.extensions().then((snapshot) => {
       if (disposed) return;
       const enabled = new Set((snapshot?.rows ?? []).filter((row) => row.enabled).map((row) => row.id));
       if (enabled.has('usage')) extensionFeatures.push(mountUsageView(ctx));
