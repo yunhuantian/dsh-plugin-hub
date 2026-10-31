@@ -87,15 +87,37 @@ export function apply(ctx: any): void {
         scope: {
           type: 'string',
           enum: ['session', 'last_request'],
-          required: false,
           description: 'session (default) = whole session; last_request = the most recent completed request only.',
         },
         include_rates: {
           type: 'boolean',
-          required: false,
           description: 'Include the current unit-price table for DeepSeek models. Default true.',
         },
       },
+      // ⚠️ schema 是 dsh-tools 的「作者 DSL」，它有**两道**校验，规则并不相同：
+      //
+      //   ① DSL 编译期（runSchemaCompiler）：
+      //      - 属性节点：`required` 只接受 `true`，写 `false` 直接抛
+      //        "must be true when present"；
+      //      - object 节点：`required` 只能是布尔 `true`（写成数组则在编译后
+      //        触发裸校验 "must be an array of strings"）；
+      //      - array 节点：`required: true` 表示"这个数组字段本身必填"，合法；
+      //      - object 必须有显式 `additionalProperties`（bool）；
+      //      - `oneOf` 各分支 allowRequired:false，分支内不能写 required。
+      //
+      //   ② 裸 JSON Schema 校验（assertSupportedJsonSchema）：
+      //      - object 上的 `required` 必须是**字符串数组**，且每个名字都在
+      //        `properties` 里；
+      //      - 任何节点都不接受 DSL 的 `required: true` —— 编译期会把它转成
+      //        父层的 required 数组，所以**只有编译过的 defineTool 定义**能过。
+      //
+      // 0.2.8 首版把 `required: true` 写在了 `tokens`（object）与 `models`
+      // （array）这两个节点上，两条规则都不认 → UNSUPPORTED_SCHEMA →
+      // 整个 usage 扩展装配失败 → 用量页黑屏，界面上一个字都不说为什么。
+      //
+      // 结论：必填一律写在**叶子属性**上；object / array 节点不写 `required`，
+      // 需要"这个字段必填"时由父层统一表达（本工具的 output 全部必填，见下方
+      // 根节点 —— 根不需要 required，输出校验在渲染前已经过 schema）。
       output: {
         schema: {
           type: 'object',
@@ -112,7 +134,6 @@ export function apply(ctx: any): void {
             tokens: {
               type: 'object',
               additionalProperties: false,
-              required: true,
               properties: {
                 uncached_input: { type: 'integer', required: true },
                 cache_read: { type: 'integer', required: true },
@@ -121,7 +142,6 @@ export function apply(ctx: any): void {
             },
             models: {
               type: 'array',
-              required: true,
               items: {
                 type: 'object',
                 additionalProperties: false,
@@ -133,7 +153,7 @@ export function apply(ctx: any): void {
                 },
               },
             },
-            rates: { type: 'string', required: false },
+            rates: { type: 'string' },
           },
         },
         render: (_args: unknown, value: ReportValue) => [{

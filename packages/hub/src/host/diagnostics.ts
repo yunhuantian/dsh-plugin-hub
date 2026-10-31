@@ -155,6 +155,33 @@ function scanSecrets(body: string): string[] {
   return findings;
 }
 
+/**
+ * 给常见装配失败配一句"怎么办"。
+ *
+ * 识别的是**报错的形状**而不是插件名：同一类错（比如 schema DSL 不认识某个
+ * 关键字）会出现在任何插件上，写死插件名等于下次换个人踩还要再改一次。
+ *
+ * @returns 一句可执行的建议；认不出来返回 null（不编造）。
+ */
+function failureHint(detail: string): string | null {
+  if (/unsupported JSON schema/i.test(detail)) {
+    // dsh-tools 的作者 DSL：required 写在属性节点上，object/array 节点不能写。
+    return '工具 schema 与 dsh-tools 的 schema DSL 不匹配（`required: true` 只能写在属性上，'
+      + 'object/array 节点不能写 `required`；`required: false` 也是非法的）。'
+      + '这是插件本身的 bug，升级到修复版本即可；在此之前该插件的界面不会出现。';
+  }
+  if (/cannot get property|without inject/i.test(detail)) {
+    return '模块导出的 `inject` 少声明了它实际读取的服务。补进 `inject` 数组后重启。';
+  }
+  if (/is not declared/i.test(detail) && /slot/i.test(detail)) {
+    return '声明式槽尚未就绪就注册了。改用 `slots.inject(SLOT, () => slots.register(...))`。';
+  }
+  if (detail.includes('依赖')) {
+    return '它依赖的底座插件被关掉了。在设置页把被依赖的插件打开，或关掉这个插件。';
+  }
+  return null;
+}
+
 /** 花费小节：与「用量」tab / `usage_report` 工具同一口径。 */
 function spendSection(ledger: SessionLedger | null): string[] {
   const lines: string[] = ['## 用量与花费', ''];
@@ -239,13 +266,21 @@ export function buildDiagnosticReport(
 
   // ── 失败详情 ────────────────────────────────────────────────────────────
   // 表里只写了 phase，真正能定位的是插件自己上报的那句 note —— 单独列出来。
+  //
+  // 本节的"可回访性"是特意设计的：失败原因会被截断到 200 字（schema 校验那类
+  // 报错动辄上千字），但**保留了足够定位的头部**。0.2.8 的 `usage` 扩展就是
+  // 死在这里 —— schema DSL 不认识 `required: true`，整个扩展装配失败，
+  // 表现却是"用量页黑屏"，没有任何窗口告诉用户原因。
   const reported = HUB_PLUGINS
     .map((plugin) => ({ plugin, status: statuses[plugin.id] }))
     .filter((row) => row.status !== undefined && (row.status.phase === 'failed' || row.status.phase === 'blocked'));
   if (reported.length > 0) {
     lines.push('### 需要处理的插件', '');
     for (const { plugin, status } of reported) {
-      lines.push(`- 「${plugin.name}」\`${plugin.id}\` — ${status!.phase}：${status!.detail || '（无说明）'}${status!.at > 0 ? `（${new Date(status!.at).toISOString()}）` : ''}`);
+      const detail = status!.detail || '（无说明）';
+      lines.push(`- 「${plugin.name}」\`${plugin.id}\` — ${status!.phase}：${detail}${status!.at > 0 ? `（${new Date(status!.at).toISOString()}）` : ''}`);
+      const hint = failureHint(detail);
+      if (hint !== null) lines.push(`  - 怎么办：${hint}`);
     }
     lines.push('');
   }

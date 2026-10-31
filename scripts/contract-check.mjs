@@ -177,6 +177,156 @@ for (const [label, ok, detail] of checks) {
   console.log(`  ${ok ? '✓' : '✗'} ${'方法面一致性'.padEnd(22)} host ${hostMethods.size} 个 Remote / 契约 ${declared.size} 条${missing.length ? ` · 缺描述符: ${missing.join(', ')}` : ''}${orphan.length ? ` · 多余描述符: ${orphan.join(', ')}` : ''}`);
 }
 
+// ── 2.6 工具 schema 能否被 dsh-tools 编译（真实 SDK，不是正则）────────────
+// 0.2.8 首版把 `required: true` 写到了 object / array 节点上，dsh-tools 的
+// schema DSL 直接抛 UNSUPPORTED_SCHEMA → 整个 `usage` 扩展装配失败 →
+// 用量页**黑屏且无任何提示**。当时的 smoke 只跑了 host 的 Remote，没有跑到
+// defineTool 这一层，所以完全没有拦住。
+//
+// 现在把每个内建工具都真装配一遍：真实 `defineTool`（真编译）＋ 假 ctx。
+//
+// ⚠️ 必须用**宿主（harness）实际的** dsh-tools，而不是仓库 node_modules 里那份：
+// 两者版本差得很远（仓库 0.1.0-rc.6 / 桌面端 0.2.1-rc.5），schema 规则不同。
+// 0.2.8 首版正是用旧版验的 —— 旧版把 object 上的 `required: true` 原样转成
+// 父层 required 数组所以不报，新版直接抛 → 只有真机才炸。
+// 宿主路径按优先级探测，取值写进输出，避免"用了哪个 SDK"含糊。
+{
+  const { readdirSync, statSync, readFileSync, existsSync, writeFileSync, mkdirSync, symlinkSync } = await import('node:fs');
+  const { pathToFileURL } = await import('node:url');
+  const { tmpdir } = await import('node:os');
+
+  /**
+   * 校验只在**宿主真正会跑的那份** dsh-tools 上做，否则等于没做。
+   *
+   * dsh-tools 的 schema 规则在两个版本之间变过：
+   *   - 仓库里的 0.1.0-rc.6：object 上的 `required: true` 会被原样转成父层的
+   *     required 数组，**不报错**；
+   *   - 宿主里的 0.2.1-rc.5：同样写法先编译成 `required: true`，再被裸 schema
+   *     校验判为 "must be an array of strings"，**直接抛**。
+   * 0.2.8 首版就是拿旧版验的，于是本地全绿、真机黑屏。
+   *
+   * 桌面端把包压在 app.asar 里，Node 的 ESM loader 不认 asar 协议，所以这里
+   * 把 `@deepseek-ai/*` 依赖图平铺解到临时目录，再按普通路径 import。
+   */
+  const SDK_PACKAGES = ['dsh-tools', 'dsh-llm', 'dsh-scope', 'dsh-session', 'schemastery', 'cordis', 'cosmokit', 'dsh-util-values'];
+
+  const candidates = [
+    process.env.DSH_TOOLS_MODULE ?? '',
+    'C:/Users/yunhuantian/deeepseekharness/resources/app.asar',
+  ].filter((p) => p !== '' && existsSync(p));
+
+  /**
+   * 从 asar 里逐个取 `@deepseek-ai/*` 包，解成宿主 SDK 的 monorepo 镜像。
+   *
+   * dsh-tools 的入口依赖 cordis / schemastery / dsh-scope / dsh-llm / dsh-session
+   * （每行都只是其中一小部分），所以单取一个文件 import 不成。这里把它们一起
+   * 解到 `node_modules/@deepseek-ai/` 下，让 Node 的普通 ESM 解析正常工作 ——
+   * 这样跑的就是**宿主真正会跑的那份代码**，而不是仓库里落后两个版本的副本。
+   *
+   * @param asarPath app.asar 绝对路径
+   * @param outDir   镜像根目录
+   * @returns 是否成功
+   */
+  const mirrorAsarPackages = (asarPath, outDir) => {
+    try {
+      const buf = readFileSync(asarPath);
+      const headerLength = buf.readUInt32LE(12);
+      const fileBase = 16 + headerLength;
+      const header = JSON.parse(buf.subarray(16, 16 + headerLength).toString('utf8'));
+      const scope = header?.files?.dsh?.files?.node_modules?.files?.['@deepseek-ai'];
+      if (scope === undefined) return false;
+      const writeTree = (node, dir) => {
+        for (const [name, child] of Object.entries(node.files ?? {})) {
+          const target = join(dir, name);
+          if (child.files !== undefined) {
+            writeTree(child, target);
+          } else if (child.link === undefined) {
+            mkdirSync(dirname(target), { recursive: true });
+            const start = fileBase + Number(child.offset ?? 0);
+            writeFileSync(target, buf.subarray(start, start + child.size));
+          }
+        }
+      };
+      for (const pkg of SDK_PACKAGES) {
+        const node = scope.files?.[pkg];
+        if (node !== undefined) writeTree(node, join(outDir, '@deepseek-ai', pkg));
+      }
+
+      // 依赖是传递的（cordis → cosmokit → …），按需把作用域里**其余**包也解出来：
+      // 缺一个就会 ERR_MODULE_NOT_FOUND，而错误信息只会指向那一层，不指向根因。
+      // 只解 `@deepseek-ai/*`（同名作用域），其它 npm 包用仓库副本即可。
+      for (const [pkg, node] of Object.entries(scope.files ?? {})) {
+        const out = join(outDir, '@deepseek-ai', pkg);
+        if (node.files === undefined || existsSync(join(out, 'package.json'))) continue;
+        writeTree(node, out);
+      }
+
+      // ⚠️ 解析层：包内 import '@deepseek-ai/x' 只会往**上层**找 node_modules。
+      // 镜像根目录若没有 node_modules/，依赖一律解析失败（报的却是"找不到 cordis"，
+      // 看起来像没解出来，实际是解出来了但不在查找路径上）。
+      const resolveRoot = join(outDir, 'node_modules', '@deepseek-ai');
+      for (const pkg of Object.keys(scope.files ?? {})) {
+        const link = join(resolveRoot, pkg);
+        if (existsSync(link)) continue;
+        mkdirSync(resolveRoot, { recursive: true });
+        try {
+          // junction 在 Windows 上不需要管理员权限；失败就当链接不存在，
+          // 后面 import 会给出明确错误。
+          symlinkSync(join(outDir, '@deepseek-ai', pkg), link, 'junction');
+        } catch { /* 忽略 */ }
+      }
+
+      return existsSync(join(outDir, '@deepseek-ai', 'dsh-tools', 'lib', 'index.js'));
+    } catch {
+      return false;
+    }
+  };
+
+  const extDir = join(lib, 'hub', 'src', 'extensions');
+
+  // 先决定用哪份 SDK：宿主 asar 镜像优先，取不到才退回仓库副本（并在输出里标注）。
+  const mirrorDir = join(tmpdir(), 'dsh-hub-sdk-mirror');
+  let tools = null;
+  let toolsVersion = '';
+  const asar = candidates.find((p) => p.endsWith('.asar'));
+  if (asar !== undefined && mirrorAsarPackages(asar, mirrorDir)) {
+    tools = await import(pathToFileURL(join(mirrorDir, '@deepseek-ai', 'dsh-tools', 'lib', 'index.js')).href);
+    toolsVersion = '宿主';
+  } else {
+    const direct = candidates.find((p) => !p.endsWith('.asar'));
+    tools = await import(direct === undefined ? '@deepseek-ai/dsh-tools' : pathToFileURL(direct).href);
+    toolsVersion = '仓库副本（可能与宿主规则不同）';
+  }
+
+  const failures = [];
+  let compiled = 0;
+  for (const file of readdirSync(extDir)) {
+    if (!file.endsWith('.js') || file.startsWith('_')) continue;
+    if (statSync(join(extDir, file)).isDirectory()) continue;
+    const mod = await import(pathToFileURL(join(extDir, file)).href).catch(() => null);
+    if (mod === null || typeof mod.apply !== 'function') continue;
+    const seen = [];
+    const ctx = {
+      tools: { register(def) { tools.defineTool(def); seen.push(def.name); } },
+      systemPrompt: { context() {}, section() {} },
+      sessionProjections: { stateOf: () => undefined },
+      effect: () => () => {}, provide: () => ({}), on: () => () => {},
+      logger: () => ({ info() {}, warn() {}, error() {}, debug() {} }),
+      console: { warn() {}, error() {}, log() {} },
+    };
+    try {
+      mod.apply(ctx);
+      compiled += seen.length;
+    } catch (error) {
+      failures.push(`${file}${seen.length > 0 ? ` @${seen[seen.length - 1]}` : ''}: ${error?.message ?? error}`);
+    }
+  }
+  const ok = failures.length === 0;
+  if (!ok) failed += 1;
+  console.log(`  ${ok ? '✓' : '✗'} ${'工具 schema 编译'.padEnd(20)} ${compiled} 个工具通过 defineTool 编译（dsh-tools ${toolsVersion}）${ok ? '' : ` · ${failures.length} 个失败:`}`);
+  for (const f of failures) console.log(`      ${f.slice(0, 300)}`);
+}
+
 // ── 3. 鉴别力：未声明字段必须被剥掉，否则本检查形同虚设 ────────────────────
 const probed = descriptorOf('extensions').result.schema.parse({
   ...extensionsPayload,
