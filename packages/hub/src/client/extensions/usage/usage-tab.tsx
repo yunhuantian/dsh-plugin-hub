@@ -174,7 +174,45 @@ function fmtDay(iso: string): string {
 export function InsightsUsageTab({ frame, tokenUsage, sessionId, t }: UsageTabProps): ReactNode {
   const tf = t ?? ((k: string) => k);
   const points = useMemo(() => collectUsagePoints(frame.nodes), [frame.nodes]);
-  const agg = useMemo(() => aggregateTokens(points), [points]);
+  const pointAgg = useMemo(() => aggregateTokens(points), [points]);
+
+  /**
+   * 权威合计优先用 host 的 `tokenUsage` 投影，而不是把节点 usage 加起来。
+   *
+   * 为什么（0.2.8 实测）：节点上的 usage **不保证逐请求完整** —— 长会话里
+   * 节点表可能被裁剪/压缩，而 `tokenUsage` 是 token-meter 在 host 侧逐请求累计
+   * 出来的，天然是全量。用节点求和会出现"图表有折线、合计却偏小甚至为 0"。
+   *
+   * 只有在投影缺失时才回落到节点求和（老会话 / 投影未就绪的瞬间）。
+   * 两者口径相同（inputTokens 就是未缓存桶），所以切换不会跳数。
+   */
+  const agg = useMemo<TokenAggregate>(() => {
+    if (tokenUsage === null || tokenUsage === undefined) return pointAgg;
+    const t = tokenUsage;
+    const fromProjection: TokenAggregate = {
+      uncached: t.uncachedInputTokens ?? 0,
+      cacheRead: t.cacheReadTokens ?? 0,
+      cacheWrite: t.cacheWriteTokens ?? 0,
+      output: t.outputTokens ?? 0,
+      reasoning: pointAgg.reasoning, // 投影没有推理桶，节点上有就照加
+    };
+    const empty = fromProjection.uncached + fromProjection.cacheRead
+      + fromProjection.cacheWrite + fromProjection.output === 0;
+    return empty ? pointAgg : fromProjection;
+  }, [tokenUsage, pointAgg]);
+
+  /**
+   * 逐请求点数与合计的差距 → 提示"部分请求无明细"。
+   *
+   * 图表只画得了有节点的那部分，所以合计可能明显大于图表之和。不解释的话，
+   * 用户会以为是算错了（正是 0.2.8 之前被当成"空白"的那类误判）。
+   */
+  const missingDetail = useMemo(() => {
+    const pointTotal = pointAgg.uncached + pointAgg.cacheRead + pointAgg.cacheWrite + pointAgg.output;
+    const aggTotal = agg.uncached + agg.cacheRead + agg.cacheWrite + agg.output;
+    return aggTotal > pointTotal * 1.02 && pointTotal >= 0 ? aggTotal - pointTotal : 0;
+  }, [agg, pointAgg]);
+
   const rate = hitRate(agg);
   const nowTable = latestTable();
 
@@ -319,7 +357,18 @@ export function InsightsUsageTab({ frame, tokenUsage, sessionId, t }: UsageTabPr
 
   const zoomed = chart ? chart.viewport.end - chart.viewport.start < (chart.full.end - chart.full.start) * 0.99 : false;
 
-  if (points.length === 0) {
+  /**
+   * 空态判定看的是**合计**，不是点数。
+   *
+   * 0.2.8 实测：这个会话有 6742 个事件、累计 1.7M 未缓存输入 + 100 万输出 +
+   * 5.9 亿缓存命中，但 chat target 的 `legacy.nodes` 里一个带 usage 的 assistant
+   * 节点都没有 —— 于是旧的 `points.length === 0` 直接判空，页面只剩一句
+   * "还没有用量数据"，看起来就是"空的"。
+   *
+   * 现在只要 token 投影有数，就渲染汇总卡；图表单独判断有没有明细点。
+   */
+  const aggTotal = agg.uncached + agg.cacheRead + agg.cacheWrite + agg.output;
+  if (aggTotal <= 0) {
     return (
       <div className="dsu-empty">
         <p>{tf('empty')}</p>
@@ -331,6 +380,7 @@ export function InsightsUsageTab({ frame, tokenUsage, sessionId, t }: UsageTabPr
   const pct = (rate * 100).toFixed(1);
   const deltaUp = costInfo.delta > 0;
   const deltaFlat = Math.abs(costInfo.delta) < 1e-9;
+  const hasPoints = points.length > 0;
 
   return (
     <div className="dsu-tab-body">
@@ -356,7 +406,11 @@ export function InsightsUsageTab({ frame, tokenUsage, sessionId, t }: UsageTabPr
       </div>
 
       {/* Chart: interactive time-axis line chart (input / output / hit-rate).
-          Wheel = zoom at cursor, drag = pan, double-click = reset. */}
+          Wheel = zoom at cursor, drag = pan, double-click = reset.
+
+          没有明细点（节点表被裁剪 / 老会话没存 usage）时不再画一条空轴，
+          直接说明"图表没有逐请求明细、合计来自 host 累计"，指向下面的汇总卡。 */}
+      {hasPoints ? (
       <div className="dsu-chart-wrap">
         <svg
           ref={svgRef}
@@ -394,17 +448,35 @@ export function InsightsUsageTab({ frame, tokenUsage, sessionId, t }: UsageTabPr
           </div>
         )}
       </div>
+      ) : (
+        <div className="dsu-nodetail">
+          <p>{tf('noDetail')}</p>
+          <p className="dsu-muted">{tf('noDetailHint')}</p>
+        </div>
+      )}
 
-      {/* Legend */}
-      <div className="dsu-legend">
-        {LEGEND.map((l) => (
-          <span key={l.key} className="dsu-legend-item"><i style={{ background: l.color }} />{tf(l.labelKey)}</span>
-        ))}
-      </div>
+      {hasPoints && (
+        <>
+          {/* Legend */}
+          <div className="dsu-legend">
+            {LEGEND.map((l) => (
+              <span key={l.key} className="dsu-legend-item"><i style={{ background: l.color }} />{tf(l.labelKey)}</span>
+            ))}
+          </div>
+
+          {/* 合计 > 明细之和时说明差额去哪了，否则用户会以为算错 */}
+          {missingDetail > 0 && (
+            <div className="dsu-muted">
+              {tf('partialDetail')} · {fmt(missingDetail)}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Model mix + price-table provenance */}
       <div className="dsu-meta">
         <div className="dsu-meta-title">{tf('modelMix')}{frame.running ? ' · ' + tf('running') : ''}</div>
+        {costInfo.models.size === 0 && <div className="dsu-muted">{tf('modelMixNone')}</div>}
         {[...costInfo.models.entries()].map(([m, c]) => (
           <div key={m} className="dsu-meta-row"><span className="dsu-meta-name" title={m === UNKNOWN_MODEL ? tf('modelUnknown') : m}>{m === UNKNOWN_MODEL ? tf('modelUnknown') : m}</span><span className="dsu-muted">{c} {tf('times')}</span></div>
         ))}

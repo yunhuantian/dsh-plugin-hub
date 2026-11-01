@@ -50,6 +50,10 @@ const zh = {
   'running': '进行中',
   'empty': '还没有用量数据',
   'emptyHint': '发送第一条消息后，这里会展示每个请求的 token 与缓存命中率。',
+  'noDetail': '这个会话没有逐请求明细',
+  'noDetailHint': '合计、缓存命中率与费用来自 host 的累计投影，数字是完整的；图表需要每个请求的节点记录，而这条会话的节点已不可用（会话过长被裁剪，或是较早的日志）。',
+  'partialDetail': '图表只覆盖有明细的部分，另有累计 token 未画入图表',
+  'modelMixNone': '没有逐请求记录，无法拆分模型',
 };
 
 const en: Record<keyof typeof zh, string> = {
@@ -80,6 +84,10 @@ const en: Record<keyof typeof zh, string> = {
   'running': 'running',
   'empty': 'No usage data yet',
   'emptyHint': 'Send a message to see per-request tokens and cache hit rate here.',
+  'noDetail': 'No per-request detail for this session',
+  'noDetailHint': 'Totals, cache hit rate and cost come from the host\u2019s cumulative projection and are complete. The chart needs a node per request, which this session no longer has (very long sessions get trimmed, and older logs never stored it).',
+  'partialDetail': 'The chart only covers requests with detail; extra cumulative tokens are not plotted',
+  'modelMixNone': 'No per-request records, so the model mix is unknown',
 };
 
 /** 本扩展的字典（由 hub client 入口统一注册）。 */

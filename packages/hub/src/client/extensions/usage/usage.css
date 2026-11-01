@@ -54,5 +54,14 @@
 .dsu-empty { color: var(--dsw-alias-label-tertiary); font-size: 13px; padding: 24px 8px; text-align: center; }
 .dsu-empty p { margin: 4px 0; }
 
+/* ---- 「没有逐请求明细」占位（合计仍完整，只是画不了折线）---- */
+.dsu-nodetail {
+  border: 1px dashed var(--dsw-alias-separator-secondary, rgba(128,128,128,.35));
+  border-radius: 8px; padding: 16px 14px; font-size: 12.5px; line-height: 19px;
+  color: var(--dsw-alias-label-secondary);
+}
+.dsu-nodetail p { margin: 0 0 6px; }
+.dsu-nodetail p:last-child { margin-bottom: 0; }
+
 /* ---- 汇总卡副标题（当时价 / 现价的差额说明）---- */
 .dsu-card-sub { font-size: 11px; line-height: 15px; color: var(--dsw-alias-label-tertiary); }
