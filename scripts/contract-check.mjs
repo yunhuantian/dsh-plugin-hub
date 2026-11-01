@@ -307,7 +307,24 @@ for (const [label, ok, detail] of checks) {
     if (mod === null || typeof mod.apply !== 'function') continue;
     const seen = [];
     const ctx = {
-      tools: { register(def) { tools.defineTool(def); seen.push(def.name); } },
+      tools: {
+        register(def) {
+          // 两道都要走，缺一不可：
+          //   ① defineTool —— 编译（会**保留**属性节点上的 required:true 原文）
+          //   ② 把编译结果再交给 assertSupportedJsonSchema —— **宿主真正执行的
+          //      那一步**。0.2.8 的两次黑屏都卡在这里：DSL 的 `required: true`
+          //      编译后仍留在属性节点上，裸校验判它 "is not supported on type"。
+          //
+          // ⚠️ 不能用 defineTool 的**返回值**去喂 ②：返回值被 rewrite 过（属性上
+          // 的 required 已提升为父层数组），于是检查永远通过 —— 上一轮的检查就是
+          // 这么写的，所以改完仍然黑屏。必须拿**原始定义**（注册表实际收到的
+          // 那个对象）去过裸校验。
+          tools.defineTool(def);
+          const raw = { ...def.output, schema: def.output.schema };
+          tools.assertSupportedJsonSchema(raw.schema);
+          seen.push(def.name);
+        },
+      },
       systemPrompt: { context() {}, section() {} },
       sessionProjections: { stateOf: () => undefined },
       effect: () => () => {}, provide: () => ({}), on: () => () => {},
@@ -323,7 +340,7 @@ for (const [label, ok, detail] of checks) {
   }
   const ok = failures.length === 0;
   if (!ok) failed += 1;
-  console.log(`  ${ok ? '✓' : '✗'} ${'工具 schema 编译'.padEnd(20)} ${compiled} 个工具通过 defineTool 编译（dsh-tools ${toolsVersion}）${ok ? '' : ` · ${failures.length} 个失败:`}`);
+  console.log(`  ${ok ? '✓' : '✗'} ${'工具 schema 编译'.padEnd(20)} ${compiled} 个工具通过 defineTool + 裸校验（dsh-tools ${toolsVersion}）${ok ? '' : ` · ${failures.length} 个失败:`}`);
   for (const f of failures) console.log(`      ${f.slice(0, 300)}`);
 }
 
