@@ -116,41 +116,88 @@ interface ChatSnapshotLike {
 export interface ChatNodeSource {
   getSnapshot: () => ChatSnapshotLike | undefined;
   subscribe: (listener: () => void) => () => void;
+  /** 同 getSnapshot；只有服务端渲染（测试用）才需要，浏览器端可省。 */
+  getServerSnapshot?: () => ChatSnapshotLike | undefined;
 }
 
 /** 空节点表的稳定引用，避免 useMemo 依赖反复变化。 */
 const EMPTY_NODES: readonly UsageNode[] = [];
 
 /**
- * conversation.view slot 的标准 kit（framework-injected）＋本扩展自注入的 chatSource。
+ * conversation.view slot 的标准 kit 里，本扩展**唯一自己提供**的那一项。
+ *
+ * 其余标准 hook（`useProjection` / `sessionId` / `useSession` / `t` …）由框架
+ * 直接作为组件 props 注入，**绝不能写进 `inject` 的返回值**。
+ *
+ * ⚠️ 0.2.8 第五次"用量页空白"的根因就是这个：`inject` 返回的
+ * `{ sessionId, t, chatSource }` 会以**同一个同名 prop**覆盖框架注入值。
+ *   - `sessionId` 被覆盖成同名同值，看不出来；
+ *   - `t` 覆盖后仍是可用函数，也看不出来；
+ *   - `useSession`（若照抄官方写法）覆盖后是 `undefined` → `useSession(...)` 直接抛
+ *     `TypeError: useSession is not a function` → 整个页签渲染成空白，控制台之外无提示。
+ *
+ * 规矩：`inject` 只放**框架不提供**的东西。槽清单里 `standardProps` 列出的名字
+ * （`useRemoteAccess` / `useResource` / `useWorkspaces` / `usePanelInfo` /
+ * `useSessions` / `useSessionStatus` / `useSessionRetainInfo` / `useSessionAccess` /
+ * `useWorkspaceAccess` / `useChat` / `useConversation` / `useInput` / `inputActions` /
+ * `useSession` / `sessionId` / `useProjection` / `useAccess` / `useTrajectory`）
+ * 一个都不要出现在 inject 的返回值里。
  */
-export interface UsageViewKit {
-  useProjection: (key: string, sel?: (v: unknown) => unknown) => unknown;
-  sessionId: string;
-  t: (k: string) => string;
+export interface UsageViewOwnerProps {
+  /** 框架注入：按 key 读 host 投影的 selector hook。 */
+  useProjection?: (key: string, sel?: (v: unknown) => unknown) => unknown;  /** 框架注入：当前会话 id。 */
+  sessionId?: string;
+  /** 框架注入：绑到本扩展 locale 命名空间的翻译函数。 */
+  t?: (k: string) => string;
+  /** 本扩展注入：chat target 的节点源。 */
   chatSource: ChatNodeSource;
 }
 
 /**
  * 用量视图 tab。节点来自 chat target（useSyncExternalStore 订阅），
  * token 合计来自 Host 计算的 `tokenUsage` 投影。
+ *
+ * 对标准 props 做防御性兜底：万一某个 host 版本没注入 `useProjection`，
+ * 视图仍能用节点求和把数字显示出来，而不是整个崩掉（空白页最难排查）。
  */
-export function UsageView(props: UsageViewKit): ReactNode {
-  const { useProjection, sessionId, t, chatSource } = props;
-  const chat = useSyncExternalStore(chatSource.subscribe, chatSource.getSnapshot);
+export function UsageView(props: UsageViewOwnerProps): ReactNode {
+  const { useProjection, sessionId, chatSource } = props;
+  const t = props.t ?? ((k: string) => k);
+  const chat = useSyncExternalStore(
+    chatSource.subscribe,
+    chatSource.getSnapshot,
+    chatSource.getServerSnapshot ?? chatSource.getSnapshot,
+  );
   const nodes = chat?.legacy?.nodes ?? EMPTY_NODES;
   const running = chat?.legacy?.partial != null;
-  const tokenUsage = useProjection('tokenUsage', (v) => v ?? null) as unknown as
+  /**
+   * `useProjection` 可能是 undefined（宿主版本不注入 / 组件被单测直接调用）。
+   * hook 不能在条件分支里调，所以先回落成一个"恒返回 null"的稳定函数，
+   * 再统一调用 —— 合计会退到节点求和，界面照常可用。
+   */
+  const projection = useProjection ?? noProjection;
+  /**
+   * 不带 selector 直读：`useProjection(key)` 的返回值本身就是稳定引用
+   * （同一个 key 只在帧到达时换引用）。反过来，selector 的默认比较是引用相等，
+   * 而 `(v) => v ?? null` 在 v 为 undefined 时**每次都是新的 null 表达式结果以外的
+   * 新建值引用**，会触发 useSyncExternalStore 的无限重渲染。
+   */
+  const tokenUsage = projection('tokenUsage') as unknown as
     | { uncachedInputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
-    | null;
+    | null | undefined;
 
   const frame = useMemo(() => ({ nodes, running }), [nodes, running]);
 
   return (
     <div className="dsu-root" data-plugin={USAGE_VIEW_ID}>
-      <InsightsUsageTab frame={frame} tokenUsage={tokenUsage} sessionId={sessionId} t={t} />
+      <InsightsUsageTab frame={frame} tokenUsage={tokenUsage} sessionId={sessionId ?? ''} t={t} />
     </div>
   );
+}
+
+/** `useProjection` 缺席时的兜底：不订阅、恒返回 null。 */
+function noProjection(): null {
+  return null;
 }
 
 /**
@@ -188,12 +235,30 @@ export function mountUsageView(ctx: any): { dispose: () => Promise<void> } {
       id: USAGE_VIEW_ID,
       order: 30,
       locale: USAGE_NS,
-      label: () => t('tab'),
-      inject: (sessionId: string) => ({ sessionId, t, chatSource: chatSourceFor(sessionId) }),
+      label: () => t('tab'), // 标签文案走 locale 命名空间（自动跟随语言）
+      // ⚠️ 只注入框架不提供的东西。`sessionId` / `t` / `useProjection` 等
+      //    标准 props 由框架直接给，写在这里会**同名覆盖**（覆盖成 undefined
+      //    就等于把组件弄崩，且是静默的空白页）。详见 UsageViewOwnerProps 注释。
+      inject: (sessionId: string) => {
+        try {
+          return { chatSource: chatSourceFor(sessionId) };
+        } catch (error) {
+          // binding 尚未就绪时不抛（抛出去同样等于页签空白）；给一个空源，
+          // 视图降级为"无明细 + 合计来自投影"。
+          console.warn('[dsh-plugin-hub] usage: chat target unavailable:', error);
+          return { chatSource: EMPTY_SOURCE };
+        }
+      },
     }, UsageView));
 
     return () => {};
   });
 }
+
+/** chat target 取不到时的空源（稳定引用，getSnapshot 恒 undefined）。 */
+const EMPTY_SOURCE: ChatNodeSource = {
+  getSnapshot: () => undefined,
+  subscribe: () => () => {},
+};
 
 export { usageCss };

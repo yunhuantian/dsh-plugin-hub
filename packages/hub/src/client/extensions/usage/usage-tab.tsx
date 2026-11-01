@@ -125,7 +125,7 @@ function fmtUsd(v: number): string {
 
 interface UsageTabProps {
   frame: { nodes: readonly UsageNode[]; running: boolean };
-  tokenUsage: { uncachedInputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number } | null;
+  tokenUsage: { uncachedInputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number } | null | undefined;
   sessionId: SessionId;
   t?: (k: string) => string;
 }
