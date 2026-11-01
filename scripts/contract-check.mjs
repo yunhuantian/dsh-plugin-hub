@@ -177,6 +177,46 @@ for (const [label, ok, detail] of checks) {
   console.log(`  ${ok ? '✓' : '✗'} ${'方法面一致性'.padEnd(22)} host ${hostMethods.size} 个 Remote / 契约 ${declared.size} 条${missing.length ? ` · 缺描述符: ${missing.join(', ')}` : ''}${orphan.length ? ` · 多余描述符: ${orphan.join(', ')}` : ''}`);
 }
 
+/**
+ * 发往模型 API 的 function schema 必须过的那条线（服务端规则，不是本地子集）。
+ *
+ * DeepSeek 的报错原文：
+ *   Invalid schema for function 'usage_report': schema must be a JSON Schema of
+ *   'type: "object"', got 'type: null'.
+ *
+ * 规则：根节点必须是 `type: 'object'`；**任何**节点都不能 `type: null` 或缺
+ * `type`（annotations-only 节点在这里也不安全）。返回问题列表，空 = 通过。
+ */
+const SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'null']);
+function wireSchemaProblems(schema, path) {
+  const problems = [];
+  const walk = (node, at) => {
+    if (node === null || typeof node !== 'object' || Array.isArray(node)) {
+      problems.push(`${at} 不是 schema 对象`);
+      return;
+    }
+    const type = node.type;
+    if (type === undefined) problems.push(`${at}.type 缺失`);
+    else if (type === null) problems.push(`${at}.type 为 null`);
+    else if (typeof type !== 'string') problems.push(`${at}.type 不是字符串`);
+    else if (type === 'object') {
+      for (const [key, child] of Object.entries(node.properties ?? {})) walk(child, `${at}.properties.${key}`);
+    } else if (type === 'array') {
+      if (node.items !== undefined) walk(node.items, `${at}.items`);
+    } else if (!SCALAR_TYPES.has(type)) {
+      problems.push(`${at}.type 未知：${type}`);
+    }
+    for (const [index, branch] of (node.oneOf ?? []).entries()) walk(branch, `${at}.oneOf[${index}]`);
+  };
+  if (schema === undefined || schema === null) {
+    problems.push(`${path} 整个缺失`);
+    return problems;
+  }
+  if (schema.type !== 'object') problems.push(`${path} 根节点必须是 type: "object"，实际 ${JSON.stringify(schema.type)}`);
+  walk(schema, path);
+  return problems;
+}
+
 // ── 2.6 工具 schema 能否被 dsh-tools 编译（真实 SDK，不是正则）────────────
 // 0.2.8 首版把 `required: true` 写到了 object / array 节点上，dsh-tools 的
 // schema DSL 直接抛 UNSUPPORTED_SCHEMA → 整个 `usage` 扩展装配失败 →
@@ -322,6 +362,21 @@ for (const [label, ok, detail] of checks) {
           tools.defineTool(def);
           const raw = { ...def.output, schema: def.output.schema };
           tools.assertSupportedJsonSchema(raw.schema);
+          //   ③「发出去能被服务端接受」—— 前两道只查**本地子集**，管不住
+          //      wire 上的样子。2026-11-01 实测：schema 本地全绿，但发到
+          //      DeepSeek 后整轮请求被拒：
+          //        Invalid schema for function 'usage_report':
+          //        schema must be a JSON Schema of 'type: "object"', got 'type: null'
+          //
+          //      ⚠️ 注意 `parameters` 在这里是**属性映射（DSL）**，不是完整
+          //      schema —— 必须先用 defineTool 编译出来的那份（即注册表实际会
+          //      投影给模型的东西）去验，直接验原文会误报"根节点缺 type"。
+          const compiled = tools.defineTool(def);
+          const problems = wireSchemaProblems(compiled.parameters, 'parameters');
+          problems.push(...wireSchemaProblems(compiled.output.schema, 'output.schema'));
+          const serialized = JSON.stringify({ parameters: compiled.parameters, output: compiled.output.schema });
+          if (/"type":\s*null/.test(serialized)) problems.push('序列化后出现 "type": null');
+          if (problems.length > 0) throw new Error(problems.join('; '));
           seen.push(def.name);
         },
       },
@@ -340,7 +395,7 @@ for (const [label, ok, detail] of checks) {
   }
   const ok = failures.length === 0;
   if (!ok) failed += 1;
-  console.log(`  ${ok ? '✓' : '✗'} ${'工具 schema 编译'.padEnd(20)} ${compiled} 个工具通过 defineTool + 裸校验（dsh-tools ${toolsVersion}）${ok ? '' : ` · ${failures.length} 个失败:`}`);
+  console.log(`  ${ok ? '✓' : '✗'} ${'工具 schema 出线'.padEnd(20)} ${compiled} 个工具通过 defineTool + 裸校验 + API 根约束（dsh-tools ${toolsVersion}）${ok ? '' : ` · ${failures.length} 个失败:`}`);
   for (const f of failures) console.log(`      ${f.slice(0, 300)}`);
 }
 
