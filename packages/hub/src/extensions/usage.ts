@@ -83,33 +83,38 @@ export function apply(ctx: any): void {
         + 'prices yourself. Returns: totals in USD (charged at the price table in force at request time, plus what the '
         + 'same usage would cost today), per-model breakdown, the current unit prices, and whether any requests were '
         + 'unpriced.',
-      // ⚠️ `parameters` 是**属性映射（DSL）**，不是完整 JSON Schema。
+      // ⚠️ `parameters` 必须是**完整 JSON Schema**（显式 object 根），
+      //    因为这里用的是 `ctx.tools.register()`，不是 `defineTool()`。
       //
-      // 宿主的 `normalizeParameterSchemaSpec` 两种写法都收：
-      //   · 属性映射 `{ name: {type,...} }` → 包成 `{type:'object', properties}`
-      //   · 完整 schema `{type:'object', properties:{...}}` → 直接采用
-      // 但**`defineTool()` 只收属性映射**（它内部再包一层）。两者混用会在
-      // 注册表边界炸：0.2.8 曾把 `properties` 写在顶层，defineTool 把它当成
-      // 两个名为 type/properties 的参数去编译 → 抛
-      // `parameters.type must be a value schema object`。
+      // 两条路径的差别是致命的，别再搞反：
       //
-      // 更早那次事故（用户看到的是整轮请求失败）来自另一种写法：当时这里
-      // 少了 `type: 'object'` 根，发到 DeepSeek 的 function schema 变成
-      // `type: null`，服务端直接拒绝**整个请求**（不是只拒绝这个工具）：
-      //   Invalid schema for function 'usage_report':
-      //   schema must be a JSON Schema of 'type: "object"', got 'type: null'.
+      //   · `tools.defineTool(def)` —— 收**属性映射** `{ name: {type,...} }`，
+      //     内部 `parameterSchemaSpecToJsonSchema()` 无条件补上
+      //     `{ type:'object', properties }`，所以裸映射是合法的。
+      //   · `tools.register(def)` —— **原样存** definition，不做任何编译，
+      //     只校验 `output.schema`。宿主往外发时按
+      //     `spec.properties ?? ...` 取值，裸映射里没有 `properties` 键，
+      //     于是取到 undefined → 序列化成 `"type": null` → 服务端拒绝
+      //     **整个请求**（不是只拒绝这个工具）：
       //
-      // 结论：统一用属性映射（与官方 tool-cordis 一致），并在
-      // `check:contract` 里按 API 规则验一遍根节点 —— 本地子集校验管不住 wire。
+      //       Invalid schema for function 'usage_report':
+      //       schema must be a JSON Schema of 'type: "object"', got 'type: null'.
+      //
+      // 0.2.8 之前这里写的就是裸属性映射。当年的「验证」只跑了
+      // `defineTool` 那条路（它会把根补全），所以一直显示"没问题" —— 真正的
+      // 注册路径根本没被覆盖。现在 `check:contract` 同时验两条路的产物。
       parameters: {
-        scope: {
-          type: 'string',
-          enum: ['session', 'last_request'],
-          description: 'session (default) = whole session; last_request = the most recent completed request only.',
-        },
-        include_rates: {
-          type: 'boolean',
-          description: 'Include the current unit-price table for DeepSeek models. Default true.',
+        type: 'object',
+        properties: {
+          scope: {
+            type: 'string',
+            enum: ['session', 'last_request'],
+            description: 'session (default) = whole session; last_request = the most recent completed request only.',
+          },
+          include_rates: {
+            type: 'boolean',
+            description: 'Include the current unit-price table for DeepSeek models. Default true.',
+          },
         },
       },
       // ⚠️ 输出 schema 的规则（实测，比文档严得多）：

@@ -359,7 +359,14 @@ function wireSchemaProblems(schema, path) {
           // 的 required 已提升为父层数组），于是检查永远通过 —— 上一轮的检查就是
           // 这么写的，所以改完仍然黑屏。必须拿**原始定义**（注册表实际收到的
           // 那个对象）去过裸校验。
-          tools.defineTool(def);
+          //
+          // ⚠️ 现在内建工具一律走 `ctx.tools.register()`，而 register **不做任何
+          // 编译**（宿主原样存、原样发）。所以 `defineTool(def)` 在这里不适用：
+          // 它只收属性映射，喂完整 schema 会抛
+          // `parameters.type must be a value schema object`。本地只做两件事：
+          //   ① 参数必须是完整 JSON Schema（下面 wireSchemaProblems 验）
+          //   ② output.schema 过宿主的裸校验
+          // 想验 defineTool 那条路，得另外构造属性映射来试（本项目不用）。
           const raw = { ...def.output, schema: def.output.schema };
           tools.assertSupportedJsonSchema(raw.schema);
           //   ③「发出去能被服务端接受」—— 前两道只查**本地子集**，管不住
@@ -368,13 +375,16 @@ function wireSchemaProblems(schema, path) {
           //        Invalid schema for function 'usage_report':
           //        schema must be a JSON Schema of 'type: "object"', got 'type: null'
           //
-          //      ⚠️ 注意 `parameters` 在这里是**属性映射（DSL）**，不是完整
-          //      schema —— 必须先用 defineTool 编译出来的那份（即注册表实际会
-          //      投影给模型的东西）去验，直接验原文会误报"根节点缺 type"。
-          const compiled = tools.defineTool(def);
-          const problems = wireSchemaProblems(compiled.parameters, 'parameters');
-          problems.push(...wireSchemaProblems(compiled.output.schema, 'output.schema'));
-          const serialized = JSON.stringify({ parameters: compiled.parameters, output: compiled.output.schema });
+          //      ⚠️ 关键：必须验**注册表实际收到的原始定义**（`def`），
+          //      不能验 `defineTool(def)` 的返回值。宿主里两条路完全不同：
+          //        · defineTool() → 内部补 `{type:'object', properties}`，
+          //          裸属性映射也能过 —— 拿它验等于给裸映射开后门；
+          //        · tools.register() → 原样存，宿主按 `spec.properties`
+          //          取值，裸映射取到 undefined → wire 上是 `type: null`。
+          //      上一版就是验 defineTool 的产物，于是漏掉了真正的注册路径。
+          const problems = wireSchemaProblems(def.parameters, 'parameters');
+          problems.push(...wireSchemaProblems(raw.schema, 'output.schema'));
+          const serialized = JSON.stringify({ parameters: def.parameters, output: def.output.schema });
           if (/"type":\s*null/.test(serialized)) problems.push('序列化后出现 "type": null');
           if (problems.length > 0) throw new Error(problems.join('; '));
           seen.push(def.name);
@@ -395,7 +405,7 @@ function wireSchemaProblems(schema, path) {
   }
   const ok = failures.length === 0;
   if (!ok) failed += 1;
-  console.log(`  ${ok ? '✓' : '✗'} ${'工具 schema 出线'.padEnd(20)} ${compiled} 个工具通过 defineTool + 裸校验 + API 根约束（dsh-tools ${toolsVersion}）${ok ? '' : ` · ${failures.length} 个失败:`}`);
+  console.log(`  ${ok ? '✓' : '✗'} ${'工具 schema 出线'.padEnd(20)} ${compiled} 个工具通过「完整 schema 根 + 裸校验 + API 根约束」（dsh-tools ${toolsVersion}）${ok ? '' : ` · ${failures.length} 个失败:`}`);
   for (const f of failures) console.log(`      ${f.slice(0, 300)}`);
 }
 
