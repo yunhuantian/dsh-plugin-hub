@@ -6,13 +6,17 @@
  * skill works in dsh — we collect from multiple topics, not only dsh-tagged
  * repos: dsh-skill / claude-skills / agent-skills / skills / claude-skill.
  *
- * Each repo may be a single-skill bundle (root SKILL.md) or a collection
- * (`.agents/skills/`, `.claude/skills/`, `skills/`). We index every SKILL.md
- * found: frontmatter (name / description / version) + full content for the
- * store UI, derive usage categories from the description, tag the platform
- * (`dsh` vs general), and install copies the same bundle into
- * `$DSH_HOME/skills/<name>/` where dsh's skill-filesystem discovers it for
- * in-conversation use.
+ * A repo is usually a *collection*: skills live one or more levels below the
+ * repo root (`skills/<name>/SKILL.md`, `.agents/skills/<name>/SKILL.md`,
+ * `packages/<pkg>/skills/<name>/SKILL.md`, …). Indexing only a `SKILL.md` file
+ * directly inside a fixed directory therefore matches almost nothing; this
+ * implementation reads the git tree once per repo and indexes every
+ * `SKILL.md` found at any reasonable depth, falling back to a bounded
+ * directory walk when the tree is unavailable or truncated.
+ *
+ * Content is fetched through the contents API (base64) instead of
+ * `raw.githubusercontent.com`: the raw host is unreachable on some networks
+ * (e.g. mainland China), which used to yield 0 skills with no visible error.
  *
  * Fail-safe: a fetch failure keeps the previous table; sync failure never
  * blocks the mirror or any other store function.
@@ -28,9 +32,17 @@ const SKILL_TOPIC_QUERIES = [
   'topic:skills',
   'topic:claude-skill',
 ];
-const PER_TOPIC_LIMIT = 30;
+const PER_TOPIC_LIMIT = 100;
 const MAX_REPOS = 150;
 const CANDIDATE_DIRS = ['.agents/skills', '.claude/skills', 'skills', ''];
+/** Deep enough for monorepos, shallow enough to skip bundled examples. */
+const MAX_SKILL_PATH_SEGMENTS = 8;
+const MAX_SKILLS_PER_REPO = 30;
+const MAX_TOTAL_SKILLS = 800;
+const MAX_FALLBACK_DIRS = 40;
+const IGNORED_SEGMENTS = new Set([
+  'node_modules', 'vendor', 'dist', 'build', '.git', '.next', 'coverage', '.cache',
+]);
 
 /** Usage-category keywords (mirror of the store's 12 categories). */
 const SKILL_CAT_KEYS: Record<string, string[]> = {
@@ -53,12 +65,6 @@ export interface SkillSyncResult {
   repos: number;
   skills: number;
   error?: string;
-}
-
-interface FetchedSkill {
-  repo: string;
-  dir: string;
-  content: string;
 }
 
 /** Derive usage categories from a skill's description. */
@@ -86,11 +92,29 @@ export function parseSkillFrontmatter(md: string): { name: string; description: 
   const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(md.trim());
   if (!m) return out;
   const body = m[1];
+  const lines = body.split(/\r?\n/);
   const pick = (key: string): string => {
-    const re = new RegExp(`^\\s*${key}\\s*:\\s*(.+?)\\s*$`, 'm');
-    const hit = re.exec(body);
-    if (!hit) return '';
-    return hit[1].replace(/^["']|["']$/g, '').trim();
+    const lineRe = new RegExp(`^\\s*${key}\\s*:\\s*(.*)$`);
+    const idx = lines.findIndex((line) => lineRe.test(line));
+    if (idx < 0) return '';
+    const inline = lineRe.exec(lines[idx])?.[1]?.trim() ?? '';
+    // YAML block scalar (`description: |` / `>`): the value is on the following
+    // indented lines. Without this, skills using a block scalar show "|".
+    if (/^[|>][-+]?$/.test(inline.replace(/\s*#.*$/, ''))) {
+      const folded = inline.startsWith('>');
+      const collected: string[] = [];
+      for (let i = idx + 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim() === '') {
+          if (collected.length > 0) collected.push('');
+          continue;
+        }
+        if (!/^\s/.test(line)) break;
+        collected.push(line.trim());
+      }
+      return collected.join(folded ? ' ' : '\n').trim();
+    }
+    return inline.replace(/^["']|["']$/g, '').trim();
   };
   out.name = pick('name');
   out.description = pick('description') || pick('description_en');
@@ -113,65 +137,152 @@ async function listDir(github: GitHubClient, repo: string, dir: string): Promise
   }
 }
 
+/** A path that looks like a single skill bundle. */
+function looksLikeSkillPath(path: string): boolean {
+  const segs = String(path ?? '').split('/').filter(Boolean);
+  if (segs.length === 0 || segs.length > MAX_SKILL_PATH_SEGMENTS) return false;
+  if (segs.some((s) => IGNORED_SEGMENTS.has(s))) return false;
+  return /^skill\.md$/i.test(segs[segs.length - 1]);
+}
+
+/**
+ * Find every SKILL.md path in a repo.
+ * One git-tree call covers the whole repo; a bounded directory walk covers
+ * repos whose tree is unavailable or truncated (huge monorepos).
+ */
+async function findSkillPaths(github: GitHubClient, repo: string, branch: string): Promise<string[]> {
+  try {
+    const tree = await github.apiGet<{
+      tree?: Array<{ path?: string; type?: string }>;
+      truncated?: boolean;
+    }>(`/repos/${repo}/git/trees/${branch}`, { recursive: '1' });
+    if (Array.isArray(tree?.tree) && tree.truncated !== true) {
+      return tree.tree
+        .filter((e) => e && String(e.type ?? 'blob') !== 'tree' && looksLikeSkillPath(String(e.path)))
+        .map((e) => String(e.path))
+        .slice(0, MAX_SKILLS_PER_REPO);
+    }
+  } catch { /* tree unavailable — fall back to directory walk */ }
+
+  const found: string[] = [];
+  const visited = new Set<string>();
+  const queue: Array<{ dir: string; depth: number }> = CANDIDATE_DIRS.map((dir) => ({ dir, depth: 0 }));
+  while (queue.length > 0 && found.length < MAX_SKILLS_PER_REPO && visited.size < MAX_FALLBACK_DIRS) {
+    const { dir, depth } = queue.shift()!;
+    if (visited.has(dir)) continue;
+    visited.add(dir);
+    const entries = await listDir(github, repo, dir);
+    for (const entry of entries) {
+      const path = dir ? `${dir}/${entry.name}` : entry.name;
+      if (entry.type === 'file' && /^skill\.md$/i.test(entry.name) && looksLikeSkillPath(path)) {
+        found.push(path);
+      } else if (entry.type === 'dir' && depth < 3 && !IGNORED_SEGMENTS.has(entry.name)) {
+        queue.push({ dir: path, depth: depth + 1 });
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * Fetch a SKILL.md through the contents API (base64 payload).
+ *
+ * `raw.githubusercontent.com` is blocked on some networks (e.g. mainland
+ * China); the old `rawFile`-based sync then collected 0 skills with no error.
+ * The contents API lives on the same host as the rest of the sync.
+ */
+async function fetchSkillContent(github: GitHubClient, repo: string, branch: string, filePath: string): Promise<string | null> {
+  const apiPath = `/repos/${repo}/contents/${filePath.split('/').map(encodeURIComponent).join('/')}`;
+  const data = await github.apiGet<{ type?: string; encoding?: string; content?: string }>(apiPath, { ref: branch });
+  if (!data || data.type === 'dir' || typeof data.content !== 'string') return null;
+  const raw = String(data.content);
+  if (data.encoding === 'base64') return Buffer.from(raw.replace(/\s+/g, ''), 'base64').toString('utf8');
+  return raw;
+}
+
+/** Make a frontmatter name safe to use as a skill directory name. */
+function safeSkillName(name: string, fallback: string): string {
+  const cleaned = String(name || '')
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/[\u0000-\u001f]/g, '')
+    .trim()
+    .slice(0, 80);
+  return cleaned || fallback;
+}
+
 export async function syncSkills(github: GitHubClient, db: StoreDB): Promise<SkillSyncResult> {
+  let apiErrors = 0;
+  let lastError = '';
   try {
     // Collect repos across every skill-related topic (dedup by full name).
     const byName = new Map<string, GitHubRepoHit>();
     for (const topic of SKILL_TOPIC_QUERIES) {
-      const hits = await github.searchRepos(topic, 1, 100);
+      const hits = await github.searchRepos(topic, 1, PER_TOPIC_LIMIT);
       for (const h of hits) if (!byName.has(h.fullName)) byName.set(h.fullName, h);
       if (byName.size >= MAX_REPOS) break;
     }
     const targets = [...byName.values()].slice(0, MAX_REPOS);
-    const fetched: FetchedSkill[] = [];
 
+    const rows: SkillRow[] = [];
+    const seen = new Set<string>();
     // Concurrently (bounded) scan each repo for SKILL.md files.
     const queue = [...targets];
     const workers = Array.from({ length: 4 }, async () => {
       while (queue.length > 0) {
         const repo = queue.shift();
         if (!repo) return;
-        const { fullName } = repo;
-        for (const dir of CANDIDATE_DIRS) {
-          const entries = await listDir(github, fullName, dir);
-          const skills = entries.filter((e) => e.type === 'file' && e.name.toLowerCase() === 'skill.md');
-          for (const s of skills) {
-            const filePath = dir ? `${dir}/SKILL.md` : 'SKILL.md';
-            const content = await github.rawFile(fullName.split('/')[0], fullName.split('/')[1], 'HEAD', filePath);
-            if (content && content.trim().length > 0) fetched.push({ repo: fullName, dir, content });
+        const branch = repo.defaultBranch || 'HEAD';
+        let paths: string[] = [];
+        try {
+          paths = await findSkillPaths(github, repo.fullName, branch);
+        } catch (error) {
+          apiErrors++;
+          lastError = error instanceof Error ? error.message : String(error);
+          continue;
+        }
+        for (const filePath of paths) {
+          if (rows.length >= MAX_TOTAL_SKILLS) return;
+          let content: string | null = null;
+          try {
+            content = await fetchSkillContent(github, repo.fullName, branch, filePath);
+          } catch (error) {
+            apiErrors++;
+            lastError = error instanceof Error ? error.message : String(error);
           }
+          if (content === null) content = await github.rawFile(repo.owner, repo.repo, branch, filePath);
+          if (!content || content.trim().length === 0) continue;
+          const meta = parseSkillFrontmatter(content);
+          const fallback = repo.repo || repo.fullName.split('/')[1] || 'skill';
+          const name = safeSkillName(meta.name, fallback);
+          const id = `${repo.fullName}:${name}`;
+          if (seen.has(id)) continue;
+          seen.add(id);
+          const description = meta.description || meta.descriptionZh || '';
+          rows.push({
+            id,
+            name,
+            description: meta.description,
+            descriptionZh: meta.descriptionZh,
+            version: meta.version,
+            author: repo.owner || '',
+            repoFullName: repo.fullName,
+            skillPath: filePath,
+            categories: deriveSkillCategories(description),
+            platform: platformOf(repo.fullName, description),
+            content: content.slice(0, 60_000),
+          });
         }
       }
     });
     await Promise.all(workers);
 
-    const rows: SkillRow[] = [];
-    const seen = new Set<string>();
-    for (const f of fetched) {
-      const meta = parseSkillFrontmatter(f.content);
-      const name = meta.name || f.repo.split('/')[1] || 'skill';
-      const id = `${f.repo}:${name}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const description = meta.description || meta.descriptionZh || '';
-      rows.push({
-        id,
-        name,
-        description: meta.description,
-        descriptionZh: meta.descriptionZh,
-        version: meta.version,
-        author: f.repo.split('/')[0] ?? '',
-        repoFullName: f.repo,
-        skillPath: f.dir ? `${f.dir}/SKILL.md` : 'SKILL.md',
-        categories: deriveSkillCategories(description),
-        platform: platformOf(f.repo, description),
-        content: f.content.slice(0, 60_000),
-      });
-    }
-
     const n = db.replaceSkills(rows);
     db.setMeta('skill_synced_at', new Date().toISOString());
     db.setMeta('skill_total', String(n));
+    db.setMeta('skill_error', '');
+    if (n === 0 && apiErrors > 0) {
+      return { ok: false, repos: targets.length, skills: 0, error: `scan failed for ${targets.length} repos: ${lastError}` };
+    }
     return { ok: true, repos: targets.length, skills: n };
   } catch (error) {
     return { ok: false, repos: 0, skills: 0, error: error instanceof Error ? error.message : String(error) };
