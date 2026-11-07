@@ -509,7 +509,12 @@ export function makeApi(remote: Record<string, any>): RemoteApi {
     setGithubToken: async (token, actor) => unwrap(await r.setGithubToken(token, actor)),
     clearGithubToken: async (actor) => unwrap(await r.clearGithubToken(actor)),
     setSchedule: async (hours, actor) => unwrap(await r.setSchedule(hours, actor)),
-    install: async (packageName, actor, source) => unwrap(await r.installPlugin(packageName, actor, source)),
+    // ⚠️ `?? 'auto'` 不能省。宿主的 `assertExactArguments` 按 descriptor 逐个
+    // 字段比对，只有 `acceptsUndefined === true` 或 codec 为 `src-json` 的参数
+    // 才允许缺席；zod 的 `.optional()` **不会**传递到 wire 层。传 undefined 时
+    // `JSON.stringify` 直接把键丢掉 → 网关判 `missing "source"` → 安装必现失败。
+    // 详见 issue #12 / #15。
+    install: async (packageName, actor, source) => unwrap(await r.installPlugin(packageName, actor, source ?? 'auto')),
     installProgress: async (packageName) => unwrap(await r.installProgress(packageName)),
     myPlugins: async () => unwrap(await r.myPlugins()),
     publish: async (payload, actor) => unwrap(await r.publish(payload, actor)),
@@ -541,11 +546,15 @@ export function makeApi(remote: Record<string, any>): RemoteApi {
     diagnosticsExport: async (sessionId) => unwrap(await r.diagnosticsExport(sessionId ?? null)),
     listSources: async () => unwrap(await r.listSources()),
     addListSource: async (input) => unwrap(await r.addListSource(input)),
-    addCrawlSource: async (spec, label) => unwrap(await r.addCrawlSource(spec, label)),
+    // 同上：`label` 在 descriptor 里是 `.nullish()`，wire 层仍是必填字段。
+    // 传 null（而不是省略）才能让键出现在 JSON 里。详见 issue #12。
+    addCrawlSource: async (spec, label) => unwrap(await r.addCrawlSource(spec, label ?? null)),
     removeListSource: async (id) => unwrap(await r.removeListSource(id)),
     refreshListSource: async (id) => unwrap(await r.refreshListSource(id)),
     importSourceBundle: async (url) => unwrap(await r.importSourceBundle(url)),
-    listSourceEntries: async (id, query, limit, offset) => unwrap(await r.listSourceEntries(id, query, limit, offset)),
+    // query/limit/offset 同理：wire 层全是必填，传 null 才能让键留在 JSON 里。
+    // host 端用 `query ?? ''` / `Number(x) || 默认值` 处理，null 与 undefined 语义一致。
+    listSourceEntries: async (id, query, limit, offset) => unwrap(await r.listSourceEntries(id, query ?? null, limit ?? null, offset ?? null)),
     installFromSource: async (sourceId, name, actor) => unwrap(await r.installFromSource(sourceId, name, actor)),
     installModpack: async (sourceId, actor) => unwrap(await r.installModpack(sourceId, actor)),
     modpackStatus: async (sourceId) => unwrap(await r.modpackStatus(sourceId)),

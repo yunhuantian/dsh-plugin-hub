@@ -437,7 +437,8 @@ function AddPanel({ api, t, expect, onDone }: {
     if (crawl.trim() === '') return;
     setBusy(true); setError(null); setMessage(null);
     try {
-      const r = await api.addCrawlSource(crawl.trim());
+      // label 必须显式传 null：descriptor 是 .nullish()，但 wire 层必填（issue #12）
+      const r = await api.addCrawlSource(crawl.trim(), null);
       if (!r.ok) setError(r.message);
       else { setMessage(`${t('src.importOk')}：${r.message}`); setCrawl(''); onDone(); }
     } catch (e) {

@@ -170,7 +170,8 @@ function Discover({ api, onOpen, onChanged, t }: DiscoverProps): ReactNode {
   const install = async (p: PluginSummary) => {
     setBusy(p.packageName);
     try {
-      const r = await api.install(p.packageName, getActor());
+      // 显式传 'auto'：descriptor 的 source 在 wire 层是必填（见 issue #12/#15）
+      const r = await api.install(p.packageName, getActor(), 'auto');
       setError(r.ok ? null : r.message);
       if (r.ok) onChanged();
     } catch (e) {
@@ -439,7 +440,8 @@ export function Detail({ api, packageName, onBack, onChanged, t, gates }: Detail
     setError(null);
     try {
       let r;
-      if (action === 'install') r = await api.install(packageName, getActor(), source === 'auto' ? undefined : source);
+      // 默认值 'auto' 必须**显式发出去**，不能转成 undefined（见 issue #12/#15）
+      if (action === 'install') r = await api.install(packageName, getActor(), source ?? 'auto');
       else if (action === 'uninstall') r = await api.uninstall(packageName, getActor());
       else r = await api.setEnabled(packageName, action === 'enable', getActor());
       if (r.ok) {

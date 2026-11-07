@@ -177,6 +177,136 @@ for (const [label, ok, detail] of checks) {
   console.log(`  ${ok ? '✓' : '✗'} ${'方法面一致性'.padEnd(22)} host ${hostMethods.size} 个 Remote / 契约 ${declared.size} 条${missing.length ? ` · 缺描述符: ${missing.join(', ')}` : ''}${orphan.length ? ` · 多余描述符: ${orphan.join(', ')}` : ''}`);
 }
 
+// ── 2.5b 客户端实参不得是「可能为 undefined 的裸变量」 ────────────────────
+// 宿主的 `assertExactArguments` 按 descriptor 逐字段比对，**只有**
+// `acceptsUndefined === true` 或 `codec.mode === 'src-json'` 的参数才允许缺席。
+// 实测本项目 50 个 Remote 的全部参数都是 `mode: strict` / `acceptsUndefined`
+// 为空 —— 也就是说 zod 的 `.optional()` / `.nullish()` **完全不传递到 wire 层**，
+// 声明为可选的参数在网关眼里依旧是必填。
+//
+// 后果（issue #12 / #15，从 0.2.4 一直带到 0.2.8）：
+//   客户端 `api.install(pkg, actor)` 少传一个 → wrapper 直传 undefined →
+//   `JSON.stringify` 把键整个丢掉 → 网关报
+//     gateway/arguments-invalid: ... missing "source"
+//   「列表页一键安装」必现失败，而浏览/搜索/详情全都正常，所以极难发现。
+//
+// 这条检查同时覆盖两种漏法：
+//   ① 实参**个数**不足（少写一个参数）
+//   ② 实参个数够，但值可能是 undefined（`source` 而不是 `source ?? 'auto'`）
+{
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'packages', 'hub', 'src', 'client', 'api.ts'), 'utf8');
+
+  /** 从 `r.<method>(` 的左括号开始做深度配对，返回括号内的实参文本；没有该调用返回 null。 */
+  const callArgs = (method) => {
+    const marker = `r.${method}(`;
+    const at = source.indexOf(marker);
+    if (at < 0) return null;
+    let depth = 0;
+    let quote = null;
+    for (let i = at + marker.length - 1; i < source.length; i += 1) {
+      const ch = source[i];
+      if (quote !== null) {
+        if (ch === '\\') { i += 1; continue; }
+        if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === '\'' || ch === '"' || ch === '`') { quote = ch; continue; }
+      if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+      else if (ch === ')' || ch === ']' || ch === '}') {
+        depth -= 1;
+        if (depth === 0) return source.slice(at + marker.length, i);
+      }
+    }
+    return null;
+  };
+
+  /** 按**顶层**逗号切分实参（忽略嵌套括号与字符串里的逗号）。 */
+  const splitArgs = (text) => {
+    const out = [];
+    let depth = 0;
+    let quote = null;
+    let start = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
+      if (quote !== null) {
+        if (ch === '\\') { i += 1; continue; }
+        if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === '\'' || ch === '"' || ch === '`') { quote = ch; continue; }
+      if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+      else if (ch === ')' || ch === ']' || ch === '}') depth -= 1;
+      else if (ch === ',' && depth === 0) { out.push(text.slice(start, i).trim()); start = i + 1; }
+    }
+    const tail = text.slice(start).trim();
+    if (tail !== '') out.push(tail);
+    return out;
+  };
+
+  /**
+   * 该表达式是否**保证**不是 undefined。
+   * 字面量 / 函数调用 / 有 `??` `||` 兜底的都算安全；裸变量不算。
+   */
+  const definitelyDefined = (expr) => {
+    if (expr === '') return false;
+    if (/\?\?|\|\|/.test(expr)) return true;                    // x ?? 'auto' / x || null
+    if (/^['"`]/.test(expr)) return true;                        // 'auto' / `x`
+    if (/^-?\d/.test(expr)) return true;                         // 120
+    if (/^(true|false|null)$/.test(expr)) return true;           // null 是合法值，键会存在
+    if (/^\{[\s\S]*\}$/.test(expr) || /^\[[\s\S]*\]$/.test(expr)) return true; // 字面量对象/数组
+    if (/\)\s*$/.test(expr)) return true;                        // 函数调用 getActor()
+    if (/^new\s/.test(expr)) return true;
+    if (/^!/ .test(expr)) return true;
+    return false;                                                // 裸标识符 / 成员访问 → 可疑
+  };
+
+  /**
+   * 接口签名里标了 `?` 的参数位置 —— 只有这些可能为 undefined。
+   * 必填参数即使直传裸变量也是安全的（TS 类型保证非空），不能误报。
+   * 注意只看**该参数自己**的 `name?:`，不看类型体内部的 `field?:`。
+   */
+  const optionalOf = new Map();
+  for (const m of source.matchAll(/^\s{2}(\w+)\(([^)]*)\)\s*:/gm)) {
+    const parts = splitArgs(m[2]);
+    const indexes = [];
+    parts.forEach((part, index) => { if (/^\s*\w+\s*\?\s*:/.test(part)) indexes.push(index); });
+    if (indexes.length > 0) optionalOf.set(m[1], { indexes, parts });
+  }
+
+  const problems = [];
+  let covered = 0;
+  for (const [name, info] of optionalOf) {
+    // 找到实现体：`  name: async (...) => ...`，取同一行里 `r.<method>(` 的实参。
+    const implRe = new RegExp(`^\\s{4}${name}:\\s*async\\s*\\([^)]*\\)\\s*=>`, 'm');
+    const impl = implRe.exec(source);
+    if (!impl) continue;
+    const lineEnd = source.indexOf('\n', impl.index);
+    const line = source.slice(impl.index, lineEnd < 0 ? source.length : lineEnd);
+    const call = /r\.(\w+)\(/.exec(line);
+    if (!call) continue;
+    const args = callArgs(call[1]);
+    if (args === null) continue;
+    covered += 1;
+    const actual = splitArgs(args);
+    const declaredName = (index) => (info.parts[index]?.match(/^\s*(\w+)/) ?? [, `#${index}`])[1];
+    for (const index of info.indexes) {
+      if (index >= actual.length) {
+        problems.push(`${name}.${declaredName(index)}: 实参缺失（声明了 ${info.parts.length} 个，只传了 ${actual.length} 个）`);
+        continue;
+      }
+      const expr = actual[index];
+      if (definitelyDefined(expr)) continue;
+      problems.push(`${name}.${declaredName(index)}: 实参 "${expr}" 可能为 undefined → wire 上会缺这个键（改成 "${expr} ?? 默认值"）`);
+    }
+  }
+
+  const ok = problems.length === 0;
+  if (!ok) failed += 1;
+  console.log(`  ${ok ? '✓' : '✗'} ${'实参数覆盖'.padEnd(22)} ${covered} 个含可选参数的 wrapper 都做了兜底${ok ? '' : ` · ${problems.length} 处可疑:`}`);
+  for (const p of problems) console.log(`      ${p}`);
+}
+
 /**
  * 发往模型 API 的 function schema 必须过的那条线（服务端规则，不是本地子集）。
  *
