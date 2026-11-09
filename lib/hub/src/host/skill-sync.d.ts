@@ -6,13 +6,17 @@
  * skill works in dsh — we collect from multiple topics, not only dsh-tagged
  * repos: dsh-skill / claude-skills / agent-skills / skills / claude-skill.
  *
- * Each repo may be a single-skill bundle (root SKILL.md) or a collection
- * (`.agents/skills/`, `.claude/skills/`, `skills/`). We index every SKILL.md
- * found: frontmatter (name / description / version) + full content for the
- * store UI, derive usage categories from the description, tag the platform
- * (`dsh` vs general), and install copies the same bundle into
- * `$DSH_HOME/skills/<name>/` where dsh's skill-filesystem discovers it for
- * in-conversation use.
+ * A repo is usually a *collection*: skills live one or more levels below the
+ * repo root (`skills/<name>/SKILL.md`, `.agents/skills/<name>/SKILL.md`,
+ * `packages/<pkg>/skills/<name>/SKILL.md`, …). Indexing only a `SKILL.md` file
+ * directly inside a fixed directory therefore matches almost nothing; this
+ * implementation reads the git tree once per repo and indexes every
+ * `SKILL.md` found at any reasonable depth, falling back to a bounded
+ * directory walk when the tree is unavailable or truncated.
+ *
+ * Content is fetched through the contents API (base64) instead of
+ * `raw.githubusercontent.com`: the raw host is unreachable on some networks
+ * (e.g. mainland China), which used to yield 0 skills with no visible error.
  *
  * Fail-safe: a fetch failure keeps the previous table; sync failure never
  * blocks the mirror or any other store function.
